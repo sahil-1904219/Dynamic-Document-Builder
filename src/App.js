@@ -1,25 +1,19 @@
-import React, { useState, useRef } from 'react';
-import { Plus, Trash2, Download, Upload, FileText, X, File, FileJson, FileCode, ChevronDown, ChevronRight, GripVertical, Moon, Sun, Copy, Edit2, Check, Layers, BarChart3 } from 'lucide-react';
-
+import React, { useState, useRef, useEffect } from 'react';
+import { Plus, Trash2, Download, Upload, FileText, X, File, FileJson, FileCode, ChevronDown, ChevronRight, Moon, Sun, Copy, Search, Eye, Maximize2 } from 'lucide-react';
+import { Notification } from './components/Notification'
 // ==================== UTILITIES ====================
 const generateId = () => `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-const LEVEL_COLORS = [
-  { border: 'border-blue-500', bg: 'bg-blue-50', bgDark: 'bg-blue-900/20', text: 'text-blue-700', textDark: 'text-blue-300' },
-  { border: 'border-purple-500', bg: 'bg-purple-50', bgDark: 'bg-purple-900/20', text: 'text-purple-700', textDark: 'text-purple-300' },
-  { border: 'border-pink-500', bg: 'bg-pink-50', bgDark: 'bg-pink-900/20', text: 'text-pink-700', textDark: 'text-pink-300' },
-  { border: 'border-orange-500', bg: 'bg-orange-50', bgDark: 'bg-orange-900/20', text: 'text-orange-700', textDark: 'text-orange-300' },
-  { border: 'border-teal-500', bg: 'bg-teal-50', bgDark: 'bg-teal-900/20', text: 'text-teal-700', textDark: 'text-teal-300' }
-];
+
 
 const buildHierarchy = (sections) => {
   const sectionMap = {};
   const hierarchy = [];
-  
+
   sections.forEach(section => {
     sectionMap[section.id] = { ...section, children: [] };
   });
-  
+
   sections.forEach(section => {
     if (section.parentId && sectionMap[section.parentId]) {
       sectionMap[section.parentId].children.push(sectionMap[section.id]);
@@ -27,201 +21,55 @@ const buildHierarchy = (sections) => {
       hierarchy.push(sectionMap[section.id]);
     }
   });
-  
+
   return hierarchy;
+};
+
+const countWords = (text) => {
+  return text.trim() ? text.trim().split(/\s+/).length : 0;
+};
+
+const countCharacters = (text) => {
+  return text.length;
 };
 
 const generateMarkdown = (hierarchy, level = 1) => {
   let markdown = '';
-  
+
   const processSection = (section, currentLevel) => {
-    const heading = '#'.repeat(currentLevel);
-    markdown += `${heading} ${section.name || 'Untitled Section'}\n\n`;
-    
-    if (section.images && section.images.length > 0) {
-      section.images.forEach((img, idx) => {
-        markdown += `![Image ${idx + 1}](${img.file.name})\n\n`;
+    if (section.name) {
+      const heading = '#'.repeat(currentLevel);
+      markdown += `${heading} ${section.name}\n\n`;
+    }
+
+    // Handle image position
+    const imagePosition = section.imagePosition || 'below';
+
+    // Images ABOVE content
+    if (imagePosition === 'above' && section.images && section.images.length > 0) {
+      section.images.forEach((img) => {
+        markdown += `![${img.label}](${img.preview})\n\n`;
       });
     }
-    
+
+    if (section.content) {
+      markdown += `${section.content}\n\n`;
+    }
+
+    // Images BELOW content (default)
+    if (imagePosition === 'below' && section.images && section.images.length > 0) {
+      section.images.forEach((img) => {
+        markdown += `![${img.label}](${img.preview})\n\n`;
+      });
+    }
+
     if (section.children && section.children.length > 0) {
       section.children.forEach(child => processSection(child, currentLevel + 1));
     }
   };
-  
+
   hierarchy.forEach(section => processSection(section, level));
   return markdown;
-};
-
-const generateMetadata = (hierarchy) => {
-  const countSections = (nodes) => {
-    let count = nodes.length;
-    nodes.forEach(node => {
-      if (node.children) count += countSections(node.children);
-    });
-    return count;
-  };
-
-  const buildTree = (nodes) => {
-    return nodes.map(node => ({
-      id: node.id,
-      name: node.name,
-      imageCount: node.images ? node.images.length : 0,
-      imagePosition: node.imagePosition || 'above',
-      children: node.children ? buildTree(node.children) : []
-    }));
-  };
-
-  return {
-    totalSections: countSections(hierarchy),
-    generatedAt: new Date().toISOString(),
-    hierarchy: buildTree(hierarchy)
-  };
-};
-
-const generatePDF = (hierarchy) => {
-  let html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Document</title>
-      <style>
-        @page { margin: 2cm; }
-        body { 
-          font-family: 'Times New Roman', Times, serif; 
-          max-width: 210mm; 
-          margin: 0 auto; 
-          padding: 20px; 
-          line-height: 1.6; 
-          color: #000;
-          background: white;
-        }
-        h1 { 
-          font-size: 18pt; 
-          margin-top: 30px; 
-          margin-bottom: 15px; 
-          font-weight: bold;
-          page-break-after: avoid;
-        }
-        h2 { 
-          font-size: 16pt; 
-          margin-top: 25px; 
-          margin-bottom: 12px; 
-          font-weight: bold;
-          page-break-after: avoid;
-        }
-        h3 { 
-          font-size: 14pt; 
-          margin-top: 20px; 
-          margin-bottom: 10px; 
-          font-weight: bold;
-          page-break-after: avoid;
-        }
-        h4 { 
-          font-size: 12pt; 
-          margin-top: 18px; 
-          margin-bottom: 8px; 
-          font-weight: bold;
-          page-break-after: avoid;
-        }
-        .images {
-          margin: 25px 0;
-          page-break-inside: avoid;
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 15px;
-        }
-        .image-item {
-          text-align: center;
-        }
-        .image-item img { 
-          max-width: 200px;
-          max-height: 200px;
-          width: auto;
-          height: auto; 
-          border: 1px solid #000;
-        }
-        .image-caption {
-          margin-top: 8px;
-          font-style: italic;
-          font-size: 10pt;
-        }
-        .section { 
-          margin-bottom: 30px; 
-          page-break-inside: avoid;
-        }
-      </style>
-    </head>
-    <body>
-  `;
-  
-  const renderSection = (section, level = 1) => {
-    const tag = `h${Math.min(level, 6)}`;
-    
-    html += `<div class="section">`;
-    html += `<${tag}>${section.name || 'Untitled Section'}</${tag}>`;
-    
-    if (section.images && section.images.length > 0) {
-      html += `<div class="images">`;
-      section.images.forEach((img, idx) => {
-        const label = String.fromCharCode(65 + idx);
-        html += `<div class="image-item">`;
-        html += `<img src="${img.preview}" alt="${section.name} - Image ${label}" />`;
-        html += `<div class="image-caption">Figure ${label}</div>`;
-        html += `</div>`;
-      });
-      html += `</div>`;
-    }
-    
-    if (section.children && section.children.length > 0) {
-      section.children.forEach(child => renderSection(child, level + 1));
-    }
-    
-    html += `</div>`;
-  };
-  
-  hierarchy.forEach(section => renderSection(section, 1));
-  html += `</body></html>`;
-  
-  return html;
-};
-
-const parseMarkdown = (content) => {
-  const lines = content.split('\n');
-  const parsedSections = [];
-  const sectionStack = [];
-
-  lines.forEach((line) => {
-    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-    
-    if (headingMatch) {
-      const level = headingMatch[1].length;
-      const name = headingMatch[2];
-      
-      const section = {
-        id: generateId(),
-        name,
-        parentId: null,
-        images: [],
-        imagePosition: 'above',
-        expanded: true
-      };
-
-      while (sectionStack.length >= level) {
-        sectionStack.pop();
-      }
-
-      if (sectionStack.length > 0) {
-        section.parentId = sectionStack[sectionStack.length - 1].id;
-      }
-
-      sectionStack.push(section);
-      parsedSections.push(section);
-    }
-  });
-
-  return parsedSections;
 };
 
 const downloadFile = (content, filename, type = 'text/plain') => {
@@ -236,57 +84,65 @@ const downloadFile = (content, filename, type = 'text/plain') => {
   URL.revokeObjectURL(url);
 };
 
+const renderMarkdown = (text) => {
+  if (!text) return '';
+
+  let html = text
+    // Bold
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // Italic
+    .replace(/\_(.+?)\_/g, '<em>$1</em>')
+    // Links
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>')
+    // Horizontal rule
+    .replace(/^---$/gm, '<hr class="my-4 border-gray-300" />')
+    // Bullet lists
+    .replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>')
+    // Numbered lists
+    .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>')
+    // Line breaks
+    .replace(/\n/g, '<br />');
+
+  return html;
+};
+
 // ==================== COMPONENTS ====================
 
-const Notification = ({ message, onClose, darkMode }) => {
-  if (!message) return null;
-  
-  return (
-    <div className={`fixed top-4 right-4 ${darkMode ? 'bg-green-700' : 'bg-green-600'} text-white px-6 py-3 rounded-lg shadow-xl z-50 text-sm animate-slide-in`}>
-      <span className="mr-2">✓</span>
-      {message}
-    </div>
-  );
-};
+// const Notification = ({ message, onClose, darkMode }) => {
+//   useEffect(() => {
+//     if (message) {
+//       const timer = setTimeout(() => onClose(), 3000);
+//       return () => clearTimeout(timer);
+//     }
+//   }, [message, onClose]);
+
+//   if (!message) return null;
+
+//   return (
+//     <div className={`fixed top-4 right-4 ${darkMode ? 'bg-green-700' : 'bg-green-600'} text-white px-6 py-3 rounded-lg shadow-xl z-50 text-sm`}>
+//       <span className="mr-2">✓</span>
+//       {message}
+//     </div>
+//   );
+// };
 
 const DownloadModal = ({ onClose, onDownload, darkMode }) => {
   const downloadOptions = [
-    {
-      id: 'pdf',
-      name: 'PDF',
-      description: 'HTML for printing',
-      icon: <File className="w-6 h-6" />,
-      color: darkMode ? 'bg-red-700 hover:bg-red-800' : 'bg-red-600 hover:bg-red-700',
-    },
-    {
-      id: 'markdown',
-      name: 'Markdown',
-      description: 'Plain text format',
-      icon: <FileCode className="w-6 h-6" />,
-      color: darkMode ? 'bg-blue-700 hover:bg-blue-800' : 'bg-blue-600 hover:bg-blue-700',
-    },
-    {
-      id: 'json',
-      name: 'JSON',
-      description: 'Structured data',
-      icon: <FileJson className="w-6 h-6" />,
-      color: darkMode ? 'bg-purple-700 hover:bg-purple-800' : 'bg-purple-600 hover:bg-purple-700',
-    }
+    { id: 'markdown', name: 'Markdown', description: 'Plain text format', icon: <FileCode className="w-6 h-6" />, color: 'bg-blue-600 hover:bg-blue-700' },
+    { id: 'json', name: 'JSON', description: 'Structured data', icon: <FileJson className="w-6 h-6" />, color: 'bg-purple-600 hover:bg-purple-700' }
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className={`${darkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl shadow-2xl max-w-2xl w-full p-6 animate-scale-in`}>
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className={`${darkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl shadow-2xl max-w-2xl w-full p-6`}>
         <div className="flex justify-between items-center mb-4">
           <h2 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>Export Document</h2>
-          <button onClick={onClose} className={`p-2 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-all`}>
-            <X size={20} className={darkMode ? 'text-slate-300' : 'text-slate-600'} />
+          <button onClick={onClose} className={`p-2 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg`}>
+            <X size={20} />
           </button>
         </div>
-        
-        <p className={`${darkMode ? 'text-slate-400' : 'text-slate-600'} mb-6`}>Choose your export format</p>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
           {downloadOptions.map(option => (
             <button
               key={option.id}
@@ -306,354 +162,121 @@ const DownloadModal = ({ onClose, onDownload, darkMode }) => {
   );
 };
 
-const Preview = ({ sections, darkMode }) => {
-  const hierarchy = buildHierarchy(sections);
-  
-  const renderPreviewSection = (section, level = 1) => {
-    const HeadingTag = `h${Math.min(level, 6)}`;
-    const colorScheme = LEVEL_COLORS[level - 1] || LEVEL_COLORS[4];
-    const imagePosition = section.imagePosition || 'above';
-    
-    return (
-      <div key={section.id} className="mb-8">
-        <div 
-          className={`p-6 rounded-xl transition-all hover:shadow-lg border-l-4 ${colorScheme.border} ${
-            darkMode 
-              ? `${colorScheme.bgDark} border border-slate-700 hover:border-slate-600` 
-              : `${colorScheme.bg} border border-slate-200 hover:shadow-blue-100`
-          }`}
-          style={{ marginLeft: `${(level - 1) * 24}px` }}
-        >
-          {imagePosition === 'above' && section.images && section.images.length > 0 && (
-            <div className="mb-5 grid grid-cols-3 gap-4">
-              {section.images.map((img, idx) => {
-                const label = String.fromCharCode(65 + idx);
-                return (
-                  <div key={idx} className={`${darkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'} border-2 p-3 rounded-lg hover:shadow-md transition-all`}>
-                    <img
-                      src={img.preview}
-                      alt={`Image ${label}`}
-                      className="w-full h-36 object-contain rounded"
-                    />
-                    <p className={`text-center text-xs font-semibold mt-2 ${colorScheme.text} ${darkMode ? colorScheme.textDark : ''}`}>
-                      Figure {label}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
 
-          <HeadingTag 
-            className={`font-bold mb-3 ${
-              level === 1 ? 'text-2xl' :
-              level === 2 ? 'text-xl' :
-              level === 3 ? 'text-lg' :
-              'text-base'
-            } ${colorScheme.text} ${darkMode ? colorScheme.textDark : ''}`}
-          >
-            {section.name || 'Untitled Section'}
-          </HeadingTag>
-          
-          {imagePosition === 'below' && section.images && section.images.length > 0 && (
-            <div className="mt-5 grid grid-cols-3 gap-4">
-              {section.images.map((img, idx) => {
-                const label = String.fromCharCode(65 + idx);
-                return (
-                  <div key={idx} className={`${darkMode ? 'border-slate-700 bg-slate-900' : 'border-slate-300 bg-white'} border-2 p-3 rounded-lg hover:shadow-md transition-all`}>
-                    <img
-                      src={img.preview}
-                      alt={`Image ${label}`}
-                      className="w-full h-36 object-contain rounded"
-                    />
-                    <p className={`text-center text-xs font-semibold mt-2 ${colorScheme.text} ${darkMode ? colorScheme.textDark : ''}`}>
-                      Figure {label}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        
-        {section.children && section.children.length > 0 && (
-          <div className="mt-6 space-y-6">
-            {section.children.map((child) => renderPreviewSection(child, level + 1))}
-          </div>
-        )}
-      </div>
-    );
-  };
 
-  if (sections.length === 0) {
-    return (
-      <div className={`flex items-center justify-center h-full ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-        <div className="text-center">
-          <FileText size={64} className="mx-auto mb-4 opacity-50" />
-          <p className="text-lg font-medium">No sections to preview</p>
-          <p className="text-sm mt-1">Add sections to see the preview</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`h-full overflow-y-auto ${darkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-blue-50 to-slate-50'}`}>
-      <div className="max-w-5xl mx-auto p-8">
-        <div className={`text-center mb-10 pb-6 ${darkMode ? 'border-slate-700' : 'border-slate-300'} border-b-2`}>
-          <h1 className={`text-4xl font-bold mb-3 ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>DOCUMENT PREVIEW</h1>
-          <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-            Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
-          </p>
-        </div>
-        
-        <div className="space-y-8">
-          {hierarchy.map((section) => renderPreviewSection(section, 1))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const Section = ({ 
-  section, 
-  sections, 
-  level, 
-  onUpdate, 
-  onDelete, 
-  onAddChild, 
-  onImageUpload,
-  onMoveUp,
-  onMoveDown,
-  canMoveUp,
-  canMoveDown,
-  darkMode
-}) => {
-  const [isExpanded, setIsExpanded] = useState(section.expanded ?? true);
-  const [isDragging, setIsDragging] = useState(false);
+const SidebarSection = ({ section, sections, level, onSelect, selectedId, onDelete, onAddChild, onDuplicate, onDragStart, onDragOver, onDrop, searchTerm, darkMode }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
   const childSections = sections.filter(s => s.parentId === section.id);
-  const colorScheme = LEVEL_COLORS[level] || LEVEL_COLORS[4];
-  const availableParents = sections.filter(s => 
-    s.id !== section.id && 
-    !isDescendant(sections, s.id, section.id) &&
-    s.parentId !== section.id
-  );
-  
-  function isDescendant(allSections, potentialDescendantId, ancestorId) {
-    const desc = allSections.find(s => s.id === potentialDescendantId);
-    if (!desc || !desc.parentId) return false;
-    if (desc.parentId === ancestorId) return true;
-    return isDescendant(allSections, desc.parentId, ancestorId);
-  }
 
-  const handleDragStart = (e) => {
-    setIsDragging(true);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', section.id);
-  };
+  // Auto-generate name from content
+  const displayName = section.name ||
+    (section.content ? section.content.substring(0, 30).trim() || 'Untitled' : 'Untitled');
 
-  const handleDragEnd = (e) => {
-    setIsDragging(false);
-  };
+  const matchesSearch = !searchTerm ||
+    displayName.toLowerCase().includes(searchTerm.toLowerCase());
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
+  if (!matchesSearch) return null;
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const draggedId = e.dataTransfer.getData('text/plain');
-    
-    if (draggedId === section.id) return;
-    
-    const draggedSection = sections.find(s => s.id === draggedId);
-    const targetSection = section;
-    
-    if (draggedSection.parentId !== targetSection.parentId) {
-      return;
-    }
-    
-    const siblings = sections.filter(s => s.parentId === targetSection.parentId);
-    const draggedIndex = siblings.findIndex(s => s.id === draggedId);
-    const targetIndex = siblings.findIndex(s => s.id === section.id);
-    
-    if (draggedIndex < targetIndex) {
-      onMoveDown(draggedId);
-    } else {
-      onMoveUp(draggedId);
-    }
-  };
+  // Max 5 levels
+  const canAddChild = level < 3;
+
+  // Check if section is invalid (only images, no content/heading)
+  const hasName = section.name && section.name.trim().length > 0;
+  const hasContent = section.content && section.content.trim().length > 0;
+  const hasImages = section.images && section.images.length > 0;
+  const isInvalid = !hasName && !hasContent && hasImages;
 
   return (
-    <div className={`mb-5 ${level > 0 ? 'ml-6' : ''}`}>
-      <div 
-        className={`rounded-xl border-l-4 ${colorScheme.border} p-5 ${isDragging ? 'opacity-50' : ''} transition-all hover:shadow-xl shadow-md ${
-          darkMode ? 'bg-slate-800 hover:bg-slate-750' : 'bg-white hover:bg-slate-50'
-        }`}
+    <div className="relative">
+      <div
         draggable
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
+        onDragStart={(e) => onDragStart(e, section.id)}
+        onDragOver={onDragOver}
+        onDrop={(e) => onDrop(e, section.parentId)}
+className={`group relative flex items-start gap-2 py-2 px-3 rounded-lg cursor-pointer transition-all ${selectedId === section.id
+          ? darkMode ? 'bg-indigo-900 bg-opacity-50' : 'bg-indigo-50'
+          : darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-50'
+          } ${isInvalid ? 'border-2 border-red-500 border-dashed' : ''}`}
+        onClick={() => onSelect(section.id)}
+        style={{ marginLeft: `${level * 16}px` }}
       >
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <div className={`cursor-move p-1.5 rounded mt-1 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
-              <GripVertical size={18} className={darkMode ? 'text-slate-500' : 'text-slate-400'} />
-            </div>
-            {childSections.length > 0 && (
-              <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className={`p-1.5 rounded transition-all mt-1 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
-              >
-                {isExpanded ? <ChevronDown size={18} className={darkMode ? 'text-slate-300' : 'text-slate-600'} /> : <ChevronRight size={18} className={darkMode ? 'text-slate-300' : 'text-slate-600'} />}
-              </button>
-            )}
-            <div className="flex-1">
-              <textarea
-                value={section.name}
-                onChange={(e) => onUpdate(section.id, 'name', e.target.value)}
-                placeholder="Section name or content..."
-                rows={3}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-all resize-none ${
-                  darkMode 
-                    ? 'bg-slate-700 border-slate-600 text-slate-100 placeholder-slate-400' 
-                    : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400'
-                }`}
-              />
-            </div>
-          </div>
 
-          {section.images && section.images.length > 0 && (
-            <div className="flex flex-wrap gap-3 ml-12">
-              {section.images.map((img, idx) => {
-                const label = String.fromCharCode(65 + idx);
-                return (
-                  <div key={idx} className="relative group">
-                    <div className={`p-2 rounded-lg border-2 transition-all ${
-                      darkMode ? 'bg-slate-700 border-slate-600' : 'bg-slate-50 border-slate-200'
-                    }`}>
-                      <img
-                        src={img.preview}
-                        alt={`Image ${label}`}
-                        className="w-28 h-28 object-cover rounded"
-                      />
-                      <p className={`text-xs text-center mt-1.5 font-semibold ${colorScheme.text} ${darkMode ? colorScheme.textDark : ''}`}>
-                        Fig. {label}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const newImages = section.images.filter((_, i) => i !== idx);
-                        onUpdate(section.id, 'images', newImages);
-                      }}
-                      className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-all shadow-lg"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+        {childSections.length > 0 ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+            className="flex-shrink-0 mt-1"
+          >
+            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+        ) : (
+          <div className="w-4 flex-shrink-0"></div>
+        )}
+
+        <FileText size={14} className="flex-shrink-0 mt-1" />
+
+<div className="flex-1 min-w-0">
+          <div className={`text-sm font-medium truncate ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+            {displayName}
+            {isInvalid && <span className="ml-2 text-red-500 text-xs">⚠️ Needs heading or content</span>}
+          </div>
+        </div>
+
+        <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate(section.id);
+            }}
+            className={`p-1 rounded ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-200'}`}
+            title="Duplicate"
+          >
+            <Copy size={14} />
+          </button>
+          {canAddChild && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddChild(section.id);
+              }}
+              className={`p-1 rounded ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-200'}`}
+              title="Add subsection"
+            >
+              <Plus size={14} />
+            </button>
           )}
-
-          <div className="flex flex-wrap items-center gap-2.5 text-sm ml-12">
-            <label className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg cursor-pointer transition-all ${
-              darkMode 
-                ? 'bg-indigo-900 border-indigo-700 hover:bg-indigo-800' 
-                : 'bg-indigo-50 border-indigo-300 hover:bg-indigo-100'
-            }`}>
-              <svg className={`w-4 h-4 ${darkMode ? 'text-indigo-300' : 'text-indigo-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span className={`text-xs font-medium ${darkMode ? 'text-indigo-200' : 'text-indigo-700'}`}>Add Image</span>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/jpg"
-                onChange={(e) => onImageUpload(section.id, e.target.files[0])}
-                className="hidden"
-              />
-            </label>
-
-            {section.images && section.images.length > 0 && (
-              <select
-                value={section.imagePosition || 'above'}
-                onChange={(e) => onUpdate(section.id, 'imagePosition', e.target.value)}
-                className={`px-4 py-2.5 border rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
-                  darkMode 
-                    ? 'bg-slate-700 border-slate-600 text-slate-200' 
-                    : 'bg-white border-slate-300 text-slate-700'
-                }`}
-              >
-                <option value="above">📷 Images Above</option>
-                <option value="below">📷 Images Below</option>
-              </select>
-            )}
-
-            {availableParents.length > 0 && (
-              <select
-                value={section.parentId || ''}
-                onChange={(e) => onUpdate(section.id, 'parentId', e.target.value || null)}
-                className={`px-4 py-2.5 border rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
-                  darkMode 
-                    ? 'bg-slate-700 border-slate-600 text-slate-200' 
-                    : 'bg-white border-slate-300 text-slate-700'
-                }`}
-              >
-                <option value="">🏠 No Parent</option>
-                {availableParents.map(parent => (
-                  <option key={parent.id} value={parent.id}>
-                    📁 Under: {parent.name || 'Untitled'}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            <button
-              onClick={() => onAddChild(section.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 shadow-md ${
-                darkMode 
-                  ? 'bg-blue-700 hover:bg-blue-600 text-white' 
-                  : 'bg-blue-500 hover:bg-blue-600 text-white'
-              }`}
-            >
-              <Plus size={15} />
-              Subsection
-            </button>
-
-            <button
-              onClick={() => onDelete(section.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 shadow-md ${
-                darkMode 
-                  ? 'bg-red-700 hover:bg-red-600 text-white' 
-                  : 'bg-red-500 hover:bg-red-600 text-white'
-              }`}
-            >
-              <Trash2 size={15} />
-              Delete
-            </button>
-          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(section.id);
+            }}
+            className="p-1 rounded hover:bg-red-500 hover:text-white"
+            title="Delete"
+          >
+            <Trash2 size={14} />
+          </button>
         </div>
       </div>
 
       {isExpanded && childSections.length > 0 && (
-        <div className="mt-5 space-y-4 pl-4 border-l-2 border-dashed" style={{ borderColor: colorScheme.border.replace('border-', '') }}>
-          {childSections.map((child, idx) => (
-            <Section
+        <div>
+          {childSections.map(child => (
+            <SidebarSection
               key={child.id}
               section={child}
               sections={sections}
               level={level + 1}
-              onUpdate={onUpdate}
+              onSelect={onSelect}
+              selectedId={selectedId}
               onDelete={onDelete}
               onAddChild={onAddChild}
-              onImageUpload={onImageUpload}
-              onMoveUp={onMoveUp}
-              onMoveDown={onMoveDown}
-              canMoveUp={idx > 0}
-              canMoveDown={idx < childSections.length - 1}
+              onDuplicate={onDuplicate}
+              onDragStart={onDragStart}
+              onDragOver={onDragOver}
+              onDrop={onDrop}
+              searchTerm={searchTerm}
               darkMode={darkMode}
             />
           ))}
@@ -663,26 +286,152 @@ const Section = ({
   );
 };
 
+const Preview = ({ sections, darkMode }) => {
+  const hierarchy = buildHierarchy(sections);
+
+
+const renderPreviewSection = (section, level = 1) => {
+  const HeadingTag = `h${Math.min(level, 6)}`;
+  
+  // DEFAULT imagePosition to 'below' if not set
+  const imagePosition = section.imagePosition || 'below';
+
+  return (
+    <div key={section.id} className="mb-6">
+      <div
+        className={`p-6 rounded-lg transition-all border ${
+          darkMode ? 'border-slate-700 bg-slate-800 bg-opacity-30' : 'border-gray-200 bg-gray-50'
+        }`}
+        style={{ marginLeft: `${(level - 1) * 24}px` }}
+      >
+        {section.name && (
+          <HeadingTag
+            className={`font-bold mb-4 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}
+            style={{
+              fontSize: level === 1 ? '2rem' : level === 2 ? '1.5rem' : level === 3 ? '1.25rem' : '1rem'
+            }}
+          >
+            {section.name}
+          </HeadingTag>
+        )}
+
+        {/* IMAGES ABOVE - Check if images exist AND position is above */}
+        {imagePosition === 'above' && section.images && section.images.length > 0 && (
+          <div className="mb-4 grid grid-cols-3 gap-4">
+            {section.images.map((img, idx) => (
+              <div key={idx} className={`border-2 rounded-lg overflow-hidden ${darkMode ? 'border-slate-600' : 'border-slate-300'}`}>
+                <img src={img.preview} alt={img.label} className="w-full h-32 object-cover" />
+                <div className={`px-3 py-2 text-sm font-medium text-center ${
+                  darkMode ? 'bg-slate-700 text-slate-200' : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {img.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {section.content && (
+          <div
+            className={`${darkMode ? 'text-slate-300' : 'text-slate-700'}`}
+            style={{ fontSize: `${section.fontSize || 16}px` }}
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(section.content) }}
+          />
+        )}
+
+        {/* IMAGES BELOW - This is the default, so check for 'below' OR undefined */}
+        {(imagePosition === 'below' || !imagePosition) && section.images && section.images.length > 0 && (
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {section.images.map((img, idx) => (
+              <div key={idx} className={`border-2 rounded-lg overflow-hidden ${darkMode ? 'border-slate-600' : 'border-slate-300'}`}>
+                <img src={img.preview} alt={img.label} className="w-full h-32 object-cover" />
+                <div className={`px-3 py-2 text-sm font-medium text-center ${
+                  darkMode ? 'bg-slate-700 text-slate-200' : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {img.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {section.children && section.children.length > 0 && (
+        <div className="mt-2">
+          {section.children.map((child) => renderPreviewSection(child, level + 1))}
+        </div>
+      )}
+    </div>
+  );
+};
+  if (sections.length === 0) {
+    return (
+      <div className={`flex items-center justify-center h-full ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+        <div className="text-center">
+          <FileText size={64} className="mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium">No content to preview</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`h-full overflow-y-auto p-8 ${darkMode ? 'bg-slate-900' : 'bg-gray-50'}`}>
+      <div className={`max-w-4xl mx-auto p-8 rounded-xl border-2 shadow-2xl ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-300'
+        }`}>
+        <h1 className="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
+          Document Preview
+        </h1>
+        {hierarchy.map((section) => renderPreviewSection(section, 1))}
+      </div>
+    </div>
+  );
+};
+
 const DynamicDocumentBuilder = () => {
   const [documents, setDocuments] = useState([
-    { id: 'doc_1', name: 'Document 1', sections: [], createdAt: new Date().toISOString() }
+    { id: 'doc_1', name: 'Untitled Document', sections: [], createdAt: new Date().toISOString() }
   ]);
   const [activeDocId, setActiveDocId] = useState('doc_1');
+  const [selectedSectionId, setSelectedSectionId] = useState(null);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [notification, setNotification] = useState('');
-  const [showPreview, setShowPreview] = useState(false);
+  const [previewMode, setPreviewMode] = useState('none');
+  const [previewWidth, setPreviewWidth] = useState(50);
   const [darkMode, setDarkMode] = useState(false);
-  const [editingDocId, setEditingDocId] = useState(null);
-  const [editingDocName, setEditingDocName] = useState('');
-  const fileInputRef = useRef(null);
-  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [autoSaveStatus, setAutoSaveStatus] = useState('Saved');
+  const [isResizing, setIsResizing] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [rotatingIndex, setRotatingIndex] = useState(null);
+  const [swappingIndex, setSwappingIndex] = useState(null);
+
+
+  const textareaRef = useRef(null);
+
   const activeDoc = documents.find(d => d.id === activeDocId);
   const sections = activeDoc ? activeDoc.sections : [];
+  const selectedSection = sections.find(s => s.id === selectedSectionId);
 
   const setSections = (newSections) => {
-    setDocuments(docs => docs.map(doc => 
-      doc.id === activeDocId ? { ...doc, sections: typeof newSections === 'function' ? newSections(doc.sections) : newSections } : doc
+    const updatedSections = typeof newSections === 'function' ? newSections(sections) : newSections;
+
+    // Add to history
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(updatedSections);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+
+    setDocuments(docs => docs.map(doc =>
+      doc.id === activeDocId ? { ...doc, sections: updatedSections } : doc
     ));
+    setAutoSaveStatus('Saving...');
+    setTimeout(() => setAutoSaveStatus('Saved'), 500);
+  };
+
+  const showNotification = (message) => {
+    setNotification(message);
   };
 
   const addDocument = () => {
@@ -694,6 +443,7 @@ const DynamicDocumentBuilder = () => {
     };
     setDocuments([...documents, newDoc]);
     setActiveDocId(newDoc.id);
+    setSelectedSectionId(null);
     showNotification('New document created!');
   };
 
@@ -701,10 +451,19 @@ const DynamicDocumentBuilder = () => {
     const docToDuplicate = documents.find(d => d.id === docId);
     if (!docToDuplicate) return;
 
+    const duplicateSection = (section) => {
+      const newSection = {
+        ...section,
+        id: generateId()
+      };
+      return newSection;
+    };
+
     const newDoc = {
       ...docToDuplicate,
       id: `doc_${Date.now()}`,
       name: `${docToDuplicate.name} (Copy)`,
+      sections: docToDuplicate.sections.map(duplicateSection),
       createdAt: new Date().toISOString()
     };
     setDocuments([...documents, newDoc]);
@@ -717,164 +476,355 @@ const DynamicDocumentBuilder = () => {
       showNotification('Cannot delete last document');
       return;
     }
-    if (window.confirm('Delete this document? This cannot be undone.')) {
+    if (window.confirm('Delete this document?')) {
       const newDocs = documents.filter(d => d.id !== docId);
       setDocuments(newDocs);
       if (activeDocId === docId) {
         setActiveDocId(newDocs[0].id);
+        setSelectedSectionId(null);
       }
       showNotification('Document deleted');
     }
   };
 
   const renameDocument = (docId, newName) => {
-    setDocuments(docs => docs.map(doc => 
+    setDocuments(docs => docs.map(doc =>
       doc.id === docId ? { ...doc, name: newName } : doc
     ));
-    setEditingDocId(null);
-  };
-
-  const startEditingDoc = (docId, currentName) => {
-    setEditingDocId(docId);
-    setEditingDocName(currentName);
-  };
-
-  const getHierarchyLevel = (section, allSections) => {
-    let level = 0;
-    let currentSection = section;
-    while (currentSection && currentSection.parentId) {
-      level++;
-      currentSection = allSections.find(s => s.id === currentSection.parentId);
-      if (!currentSection || level > 10) break;
-    }
-    return level;
-  };
-
-  const canAddSubsection = (parentId) => {
-    const siblings = sections.filter(s => s.parentId === parentId);
-    if (siblings.length >= 10) {
-      showNotification('⚠️ Maximum 10 subsections per parent');
-      return false;
-    }
-    
-    const parent = sections.find(s => s.id === parentId);
-    if (parent) {
-      const level = getHierarchyLevel(parent, sections);
-      if (level >= 4) {
-        showNotification('⚠️ Maximum 5 hierarchy levels reached');
-        return false;
-      }
-    }
-    
-    return true;
-  };
-
-  const getDocumentStats = () => {
-    const totalImages = sections.reduce((sum, s) => sum + (s.images?.length || 0), 0);
-    const hierarchy = buildHierarchy(sections);
-    const maxDepth = (nodes, depth = 0) => {
-      if (!nodes || nodes.length === 0) return depth;
-      return Math.max(...nodes.map(n => maxDepth(n.children, depth + 1)));
-    };
-    return {
-      sections: sections.length,
-      images: totalImages,
-      depth: hierarchy.length > 0 ? maxDepth(hierarchy) : 0
-    };
-  };
-
-  const showNotification = (message) => {
-    setNotification(message);
-    setTimeout(() => setNotification(''), 3000);
   };
 
   const addSection = (parentId = null) => {
-    if (parentId && !canAddSubsection(parentId)) {
-      return;
-    }
-
     const newSection = {
       id: generateId(),
       name: '',
+      content: '',
       parentId,
       images: [],
-      imagePosition: 'above',
-      expanded: true
+      expanded: true,
+      fontSize: '16'
     };
     setSections([...sections, newSection]);
-    showNotification('✅ Section added!');
+    setSelectedSectionId(newSection.id);
+    showNotification('Section added!');
   };
+
+  // Validation function to check if a section is valid
+  const isSectionValid = (section) => {
+    const hasName = section.name && section.name.trim().length > 0;
+    const hasContent = section.content && section.content.trim().length > 0;
+    const hasImages = section.images && section.images.length > 0;
+
+    // Section must have at least name OR content
+    // Images alone are not sufficient
+    return hasName || hasContent;
+  };
+
+  // Validate all sections before export
+  const validateSectionsForExport = () => {
+    const invalidSections = sections.filter(s => !isSectionValid(s));
+    
+    if (invalidSections.length > 0) {
+      const displayNames = invalidSections.map(s => {
+        if (s.images && s.images.length > 0) {
+          return `Section with ${s.images.length} image(s) only`;
+        }
+        return 'Empty section';
+      });
+      
+      return {
+        valid: false,
+        message: `Please fix these sections before exporting:\n• ${displayNames.join('\n• ')}`
+      };
+    }
+    
+    return { valid: true };
+  };
+  // ADD THIS ENTIRE BLOCK AFTER addSection function
+
+  const handleMarkdownUpload = (file) => {
+    if (!file || !file.name.endsWith('.md')) {
+      showNotification('Please upload a .md file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target.result;
+      parseMarkdownToSections(content);
+    };
+    reader.readAsText(file);
+  };
+
+const parseMarkdownToSections = (markdown) => {
+  const lines = markdown.split('\n');
+  const newSections = [];
+  let currentSection = null;
+  let parentStack = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const headingMatch = line.match(/^(#+)\s+(.+)$/);
+    const imageMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+
+    if (headingMatch) {
+      // New heading found
+      const level = headingMatch[1].length;
+      const name = headingMatch[2].trim();
+
+      while (parentStack.length > 0 && parentStack[parentStack.length - 1].level >= level) {
+        parentStack.pop();
+      }
+
+      const parentId = parentStack.length > 0 ? parentStack[parentStack.length - 1].id : null;
+
+      currentSection = {
+        id: generateId(),
+        name: name,
+        content: '',
+        parentId: parentId,
+        images: [],
+        expanded: true,
+        fontSize: '16',
+        imagePosition: 'below'
+      };
+
+      newSections.push(currentSection);
+      parentStack.push({ id: currentSection.id, level: level });
+    } else if (imageMatch && currentSection) {
+      // Image found
+      const label = imageMatch[1] || `Fig ${String.fromCharCode(65 + currentSection.images.length)}`;
+      const imageData = imageMatch[2];
+      
+      // If this is the first image and we haven't seen content yet, it's "above"
+      if (currentSection.images.length === 0 && !currentSection.content.trim()) {
+        currentSection.imagePosition = 'above';
+      }
+      
+      currentSection.images.push({
+        file: { 
+          name: label, 
+          type: imageData.startsWith('data:image/png') ? 'image/png' : 'image/jpeg' 
+        },
+        preview: imageData,
+        label: label
+      });
+    } else if (currentSection && line.trim()) {
+      // Content line
+      currentSection.content += (currentSection.content ? '\n' : '') + line;
+    }
+    
+    i++;
+  }
+
+  // Clean up content (remove trailing newlines)
+  newSections.forEach(section => {
+    if (section.content) {
+      section.content = section.content.trim();
+    }
+  });
+
+  setSections(newSections);
+  if (newSections.length > 0) {
+    setSelectedSectionId(newSections[0].id);
+  }
+  
+  const totalImages = newSections.reduce((sum, s) => sum + (s.images?.length || 0), 0);
+  showNotification(`Loaded ${newSections.length} sections with ${totalImages} images!`);
+};
 
   const updateSection = (id, field, value) => {
     setSections(sections.map(s => s.id === id ? { ...s, [field]: value } : s));
   };
 
   const deleteSection = (id) => {
-    const childSections = sections.filter(s => s.parentId === id);
-    childSections.forEach(child => deleteSection(child.id));
-    setSections(sections.filter(s => s.id !== id));
-    showNotification('🗑️ Section deleted');
-  };
-
-  const clearAll = () => {
-    if (window.confirm('Are you sure you want to clear all sections in this document? This cannot be undone.')) {
-      setSections([]);
-      showNotification('🧹 Document cleared');
+    if (window.confirm('Delete this section and all its subsections?')) {
+      const deleteRecursive = (sectionId) => {
+        const children = sections.filter(s => s.parentId === sectionId);
+        children.forEach(child => deleteRecursive(child.id));
+        setSections(prev => prev.filter(s => s.id !== sectionId));
+      };
+      deleteRecursive(id);
+      if (selectedSectionId === id) {
+        setSelectedSectionId(null);
+      }
+      showNotification('Section deleted');
     }
   };
 
-  const handleImageUpload = (id, file) => {
-    if (!file) return;
+  const duplicateSection = (sectionId) => {
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) return;
 
-    if (file && (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'image/jpg')) {
+    const newSection = {
+      ...section,
+      id: generateId(),
+      name: `${section.name} (Copy)`,
+    };
+    setSections([...sections, newSection]);
+    setSelectedSectionId(newSection.id);
+    showNotification('Section duplicated!');
+  };
+const handleImageUpload = (file) => {
+    if (!selectedSection || !file) return;
+
+    if (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'image/jpg') {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const section = sections.find(s => s.id === id);
-        const newImage = { file, preview: reader.result };
-        const currentImages = section.images || [];
-        updateSection(id, 'images', [...currentImages, newImage]);
-        showNotification('🖼️ Image added');
+        const currentImages = selectedSection.images || [];
+        const figureLabel = String.fromCharCode(65 + currentImages.length);
+        const newImage = {
+          file,
+          preview: reader.result,
+          label: `Fig ${figureLabel}`
+        };
+        updateSection(selectedSectionId, 'images', [...currentImages, newImage]);
+        
+        // Show warning if section has only images
+        if (!selectedSection.name?.trim() && !selectedSection.content?.trim()) {
+          showNotification('⚠️ Add a heading or content - images alone are not enough');
+        } else {
+          showNotification('Image added');
+        }
       };
       reader.readAsDataURL(file);
     } else {
-      showNotification('⚠️ Please upload PNG or JPG');
+      showNotification('Please upload PNG or JPG');
     }
   };
 
-  const moveSection = (sectionId, direction) => {
-    const section = sections.find(s => s.id === sectionId);
-    const siblings = sections.filter(s => s.parentId === section.parentId);
-    const currentIndex = siblings.findIndex(s => s.id === sectionId);
-    
-    if (direction === 'up' && currentIndex > 0) {
-      const newSections = [...sections];
-      const sectionIndex = newSections.findIndex(s => s.id === sectionId);
-      const targetIndex = newSections.findIndex(s => s.id === siblings[currentIndex - 1].id);
-      
-      [newSections[sectionIndex], newSections[targetIndex]] = [newSections[targetIndex], newSections[sectionIndex]];
-      setSections(newSections);
-      showNotification('⬆️ Section moved up');
-    } else if (direction === 'down' && currentIndex < siblings.length - 1) {
-      const newSections = [...sections];
-      const sectionIndex = newSections.findIndex(s => s.id === sectionId);
-      const targetIndex = newSections.findIndex(s => s.id === siblings[currentIndex + 1].id);
-      
-      [newSections[sectionIndex], newSections[targetIndex]] = [newSections[targetIndex], newSections[sectionIndex]];
-      setSections(newSections);
-      showNotification('⬇️ Section moved down');
+  const moveImage = (imageIndex, direction) => {
+    if (!selectedSection) return;
+    const images = [...selectedSection.images];
+    const newIndex = direction === 'up' ? imageIndex - 1 : imageIndex + 1;
+
+    if (newIndex < 0 || newIndex >= images.length) return;
+
+    [images[imageIndex], images[newIndex]] = [images[newIndex], images[imageIndex]];
+
+    // Relabel images
+    images.forEach((img, idx) => {
+      img.label = `Fig ${String.fromCharCode(65 + idx)}`;
+    });
+
+    updateSection(selectedSectionId, 'images', images);
+  };
+
+  const deleteImage = (imageIndex) => {
+    if (!selectedSection) return;
+    const images = selectedSection.images.filter((_, idx) => idx !== imageIndex);
+
+    // Relabel remaining images
+    images.forEach((img, idx) => {
+      img.label = `Fig ${String.fromCharCode(65 + idx)}`;
+    });
+
+    updateSection(selectedSectionId, 'images', images);
+    showNotification('Image removed');
+  };
+  const insertFormatting = (prefix, suffix = '') => {
+    if (!textareaRef.current) return;
+
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const content = selectedSection.content || '';
+    const selectedText = content.substring(start, end);
+
+    let newText;
+    let newCursorPos = start + prefix.length;
+
+    if (prefix === '[LINK]') {
+      const url = prompt('Enter URL:');
+      if (url) {
+        newText = content.substring(0, start) + `[${selectedText || 'Link Text'}](${url})` + content.substring(end);
+        newCursorPos = start + (selectedText ? selectedText.length : 9) + 3;
+      } else {
+        return;
+      }
+    } else {
+      newText = content.substring(0, start) + prefix + selectedText + suffix + content.substring(end);
+      newCursorPos = end + prefix.length + suffix.length;
     }
+
+    updateSection(selectedSectionId, 'content', newText);
+
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 10);
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      const previousState = history[newIndex];
+      setDocuments(docs => docs.map(doc =>
+        doc.id === activeDocId ? { ...doc, sections: previousState } : doc
+      ));
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      const nextState = history[newIndex];
+      setDocuments(docs => docs.map(doc =>
+        doc.id === activeDocId ? { ...doc, sections: nextState } : doc
+      ));
+    }
+  };
+  const handleDragStart = (e, sectionId) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', sectionId);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetParentId) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const draggedId = e.dataTransfer.getData('text/plain');
+    const draggedSection = sections.find(s => s.id === draggedId);
+
+    if (!draggedSection || draggedId === targetParentId) return;
+
+    const isDescendant = (parentId, childId) => {
+      const parent = sections.find(s => s.id === parentId);
+      if (!parent) return false;
+      if (parent.parentId === childId) return true;
+      if (parent.parentId) return isDescendant(parent.parentId, childId);
+      return false;
+    };
+
+    if (targetParentId && isDescendant(targetParentId, draggedId)) {
+      showNotification('Cannot move to descendant');
+      return;
+    }
+
+    updateSection(draggedId, 'parentId', targetParentId);
+    showNotification('Section moved');
   };
 
   const handleDownload = (format) => {
     if (sections.length === 0) {
-      showNotification('⚠️ Add sections first');
+      showNotification('Add sections first');
       setShowDownloadModal(false);
       return;
     }
 
-    const emptySections = sections.filter(s => !s.name.trim());
-    if (emptySections.length > 0) {
-      showNotification('⚠️ Fill in all section names');
+    // Validate sections before export
+    const validation = validateSectionsForExport();
+    if (!validation.valid) {
+      alert(validation.message);
       setShowDownloadModal(false);
       return;
     }
@@ -882,95 +832,75 @@ const DynamicDocumentBuilder = () => {
     const hierarchy = buildHierarchy(sections);
 
     switch (format) {
-      case 'pdf':
-        const html = generatePDF(hierarchy);
-        downloadFile(html, `${activeDoc.name}.html`, 'text/html');
-        showNotification('📄 HTML downloaded! Open and print to PDF');
-        break;
       case 'markdown':
         const markdown = generateMarkdown(hierarchy);
         downloadFile(markdown, `${activeDoc.name}.md`);
-        showNotification('📝 Markdown downloaded!');
+        showNotification('Markdown downloaded!');
         break;
       case 'json':
-        const metadata = generateMetadata(hierarchy);
-        downloadFile(JSON.stringify(metadata, null, 2), `${activeDoc.name}.json`, 'application/json');
-        showNotification('📊 JSON downloaded!');
+        downloadFile(JSON.stringify(hierarchy, null, 2), `${activeDoc.name}.json`, 'application/json');
+        showNotification('JSON downloaded!');
         break;
     }
 
     setShowDownloadModal(false);
   };
+  const swapImagesWithSpring = (idx) => {
+    if (swappingIndex !== null) return; // prevent double clicks
 
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+    setSwappingIndex(idx);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target.result;
-        const parsedSections = parseMarkdown(content);
-        
-        if (parsedSections.length === 0) {
-          showNotification('⚠️ No sections found');
-          return;
-        }
-
-        setSections(parsedSections);
-        showNotification(`✅ ${parsedSections.length} sections imported!`);
-      } catch (error) {
-        showNotification('❌ Error parsing file');
-      }
-    };
-    reader.readAsText(file);
+    // swap AFTER spring animation completes
+    setTimeout(() => {
+      moveImage(idx, 'down');
+      setSwappingIndex(null);
+    }, 420); // must match duration below
   };
 
+
+  const handleMouseDown = (e) => {
+    if (previewMode === 'split') {
+      setIsResizing(true);
+      e.preventDefault();
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isResizing) return;
+
+    const container = document.querySelector('.main-container');
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+
+    if (newWidth > 20 && newWidth < 80) {
+      setPreviewWidth(newWidth);
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsResizing(false);
+  };
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isResizing]);
+
+  const totalWords = selectedSection ? countWords(selectedSection.content || '') : 0;
+  const totalChars = selectedSection ? countCharacters(selectedSection.content || '') : 0;
   const topLevelSections = sections.filter(s => !s.parentId);
-  const stats = getDocumentStats();
 
   return (
-    <div className={`h-screen flex flex-col overflow-hidden ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
-      <style>{`
-        @keyframes slide-in {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-        @keyframes scale-in {
-          from {
-            transform: scale(0.9);
-            opacity: 0;
-          }
-          to {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-        .animate-slide-in {
-          animation: slide-in 0.3s ease-out;
-        }
-        .animate-scale-in {
-          animation: scale-in 0.2s ease-out;
-        }
-        .tab-scroll::-webkit-scrollbar {
-          height: 4px;
-        }
-        .tab-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .tab-scroll::-webkit-scrollbar-thumb {
-          background: #64748b;
-          border-radius: 4px;
-        }
-      `}</style>
-
-      <Notification message={notification} darkMode={darkMode} />
+    <div className={`h-screen flex flex-col ${darkMode ? 'bg-slate-900' : 'bg-white'}`}>
+      <Notification message={notification} onClose={() => setNotification('')} darkMode={darkMode} />
 
       {showDownloadModal && (
         <DownloadModal
@@ -981,292 +911,515 @@ const DynamicDocumentBuilder = () => {
       )}
 
       {/* HEADER */}
-      <div className={`${darkMode ? 'bg-slate-800 border-b border-slate-700' : 'bg-gradient-to-r from-slate-800 to-slate-700'} text-white flex-shrink-0 shadow-xl`}>
-        <div className="px-6 py-4 flex items-center justify-between">
+      <div className={`${darkMode ? 'bg-slate-800 border-b border-slate-700' : 'bg-white border-b border-gray-200'} flex-shrink-0`}>
+        <div className="px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <FileText size={32} className="text-blue-400" />
-            <div>
-              <h1 className="text-2xl font-bold">Professional Document Builder</h1>
-              <p className="text-sm text-slate-300">Multi-document workspace with advanced hierarchy</p>
-            </div>
+            <FileText size={24} className={darkMode ? 'text-indigo-400' : 'text-indigo-600'} />
+            <span className={`text-lg font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+              Dynamic Document Builder
+            </span>
           </div>
-          
-          <div className="flex items-center gap-3">
+
+            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={undo}
+                disabled={historyIndex <= 0}
+                className={`p-2 rounded-lg transition-colors ${historyIndex <= 0
+                  ? 'opacity-30 cursor-not-allowed'
+                  : darkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'
+                  }`}
+                title="Undo (Ctrl+Z)"
+              >
+                <span className="text-lg">↶</span>
+              </button>
+              <button
+                onClick={redo}
+                disabled={historyIndex >= history.length - 1}
+                className={`p-2 rounded-lg transition-colors ${historyIndex >= history.length - 1
+                  ? 'opacity-30 cursor-not-allowed'
+                  : darkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'
+                  }`}
+                title="Redo (Ctrl+Y)"
+              >
+                <span className="text-lg">↷</span>
+              </button>
+            </div>
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className={`p-3 rounded-lg transition-all ${
-                darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-700 hover:bg-slate-600'
-              }`}
+              className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'}`}
               title="Toggle Dark Mode"
             >
               {darkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
             <button
-              onClick={clearAll}
-              className="px-4 py-2 rounded-lg transition-all text-sm font-medium bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl"
+              onClick={() => setPreviewMode(previewMode === 'split' ? 'none' : 'split')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${previewMode === 'split'
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                : darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
-              Clear All
+              <Eye size={16} />
+              Live Preview
+              {previewMode === 'split' && <span className="text-xs bg-white bg-opacity-20 px-2 py-0.5 rounded">Real-time</span>}
             </button>
             <button
-              onClick={() => setShowPreview(!showPreview)}
-              className={`px-4 py-2 rounded-lg transition-all text-sm font-medium shadow-lg hover:shadow-xl ${
-                showPreview 
-                  ? 'bg-orange-600 hover:bg-orange-700' 
-                  : 'bg-purple-600 hover:bg-purple-700'
-              }`}
+              onClick={() => setPreviewMode(previewMode === 'full' ? 'none' : 'full')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${previewMode === 'full'
+                ? 'bg-purple-600 text-white hover:bg-purple-700'
+                : darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
-              {showPreview ? 'Close Preview' : 'Show Preview'}
+              {previewMode === 'full' ? <X size={16} /> : <Maximize2 size={16} />}
+              {previewMode === 'full' ? 'Close Preview' : 'Full Preview'}
+            </button>
+            <button
+              onClick={() => setShowDownloadModal(true)}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-all"
+            >
+              Export
             </button>
           </div>
         </div>
 
         {/* DOCUMENT TABS */}
-        <div className={`px-6 pb-2 flex items-center gap-2 overflow-x-auto tab-scroll ${darkMode ? 'bg-slate-800' : 'bg-slate-700'}`}>
+        <div className={`px-6 flex items-center gap-2 overflow-x-auto ${darkMode ? 'bg-slate-800' : 'bg-gray-50'}`}>
           {documents.map(doc => (
             <div
               key={doc.id}
-              className={`flex items-center gap-2 px-4 py-2 rounded-t-lg transition-all cursor-pointer group relative ${
-                activeDocId === doc.id
-                  ? darkMode ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-900'
-                  : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-650' : 'bg-slate-600 text-slate-200 hover:bg-slate-550'
-              }`}
-              onClick={() => setActiveDocId(doc.id)}
+              className={`flex items-center gap-2 px-4 py-2 cursor-pointer group relative ${activeDocId === doc.id
+                ? darkMode ? 'bg-slate-900 text-white border-b-2 border-indigo-500' : 'bg-white text-slate-900 border-b-2 border-indigo-600'
+                : darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              onClick={() => {
+                setActiveDocId(doc.id);
+                setSelectedSectionId(null);
+              }}
             >
-              {editingDocId === doc.id ? (
-                <input
-                  type="text"
-                  value={editingDocName}
-                  onChange={(e) => setEditingDocName(e.target.value)}
-                  onBlur={() => renameDocument(doc.id, editingDocName)}
-                  onKeyPress={(e) => e.key === 'Enter' && renameDocument(doc.id, editingDocName)}
-                  className={`px-2 py-1 text-sm rounded border-2 border-blue-500 focus:outline-none ${
-                    darkMode ? 'bg-slate-800 text-white' : 'bg-white text-slate-900'
+              <FileText size={14} />
+
+              <input
+                type="text"
+                value={doc.name}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  renameDocument(doc.id, e.target.value);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className={`text-sm bg-transparent border-none focus:outline-none w-32 ${activeDocId === doc.id
+                  ? darkMode ? 'text-white' : 'text-slate-900'
+                  : darkMode ? 'text-slate-400' : 'text-gray-600'
                   }`}
-                  autoFocus
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <>
-                  <FileText size={16} />
-                  <span className="text-sm font-medium whitespace-nowrap">{doc.name}</span>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startEditingDoc(doc.id, doc.name);
-                      }}
-                      className={`p-1 rounded hover:bg-opacity-20 ${darkMode ? 'hover:bg-white' : 'hover:bg-black'}`}
-                      title="Rename"
-                    >
-                      <Edit2 size={12} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        duplicateDocument(doc.id);
-                      }}
-                      className={`p-1 rounded hover:bg-opacity-20 ${darkMode ? 'hover:bg-white' : 'hover:bg-black'}`}
-                      title="Duplicate"
-                    >
-                      <Copy size={12} />
-                    </button>
-                    {documents.length > 1 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteDocument(doc.id);
-                        }}
-                        className="p-1 rounded hover:bg-red-500 hover:text-white"
-                        title="Delete"
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
+              />
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    duplicateDocument(doc.id);
+                  }}
+                  className={`p-1 rounded ${darkMode ? 'hover:bg-indigo-500 hover:text-white' : 'hover:bg-indigo-500 hover:text-white'}`}
+                >
+                  <Copy size={12} />
+                </button>
+                {documents.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteDocument(doc.id);
+                    }}
+                    className="p-1 rounded hover:bg-red-500 hover:text-white"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           <button
             onClick={addDocument}
-            className={`p-2 rounded-t-lg transition-all ${
-              darkMode ? 'bg-slate-700 hover:bg-slate-650 text-slate-300' : 'bg-slate-600 hover:bg-slate-550 text-slate-200'
-            }`}
-            title="New Document"
+            className={`p-2 ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900'}`}
           >
-            <Plus size={18} />
+            <Plus size={16} />
           </button>
         </div>
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
-        {/* SIDEBAR */}
-        {!showPreview && (
-          <div className={`w-64 border-r p-5 overflow-y-auto flex-shrink-0 ${
-            darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-          }`}>
-            {/* QUICK ACTIONS */}
-            <div className="space-y-3 mb-6">
+      <div className="flex-1 flex overflow-hidden">
+        {/* LEFT SIDEBAR */}
+        {previewMode !== 'full' && (
+          <div className={`w-64 border-r flex flex-col ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+            <div className="p-4 border-b" style={{ borderColor: darkMode ? '#334155' : '#e5e7eb' }}>
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-white'}`}>
+                <Search size={16} className={darkMode ? 'text-slate-400' : 'text-gray-400'} />
+                <input
+                  type="text"
+                  placeholder="Search sections..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={`flex-1 bg-transparent border-none focus:outline-none text-sm ${darkMode ? 'text-slate-200 placeholder-slate-500' : 'text-slate-900 placeholder-gray-400'
+                    }`}
+                />
+              </div>
+            </div>
+
+           <div className="p-4 space-y-3">
               <button
                 onClick={() => addSection()}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white transition-all text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 ${
-                  darkMode ? 'bg-blue-700 hover:bg-blue-600' : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all text-sm font-medium"
               >
                 <Plus size={18} />
-                <span>Add Section</span>
+                Add Section
               </button>
-
-              <button
-                onClick={() => setShowDownloadModal(true)}
-                disabled={sections.length === 0}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white transition-all disabled:cursor-not-allowed text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 ${
-                  sections.length === 0
-                    ? darkMode ? 'bg-slate-700' : 'bg-slate-300'
-                    : darkMode ? 'bg-green-700 hover:bg-green-600' : 'bg-green-600 hover:bg-green-700'
-                }`}
+              
+              {sections.length === 0 && (
+                <label className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all text-sm font-medium"
               >
-                <Download size={18} />
-                <span>Download</span>
-              </button>
+                  <Upload size={16} />
+                  <span>Load Markdown</span>
+                  <input
+                    type="file"
+                    accept=".md"
+                    onChange={(e) => handleMarkdownUpload(e.target.files[0])}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
 
-              <label className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white transition-all cursor-pointer text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 ${
-                darkMode ? 'bg-orange-700 hover:bg-orange-600' : 'bg-orange-600 hover:bg-orange-700'
-              }`}>
-                <Upload size={18} />
-                <span>Load MD</span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".md,.markdown"
-                  onChange={handleFileUpload}
-                  className="hidden"
+            <div className="flex-1 overflow-y-auto px-2">
+              {topLevelSections.map((section) => (
+                <SidebarSection
+                  key={section.id}
+                  section={section}
+                  sections={sections}
+                  level={0}
+                  onSelect={setSelectedSectionId}
+                  selectedId={selectedSectionId}
+                  onDelete={deleteSection}
+                  onAddChild={addSection}
+                  onDuplicate={duplicateSection}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  searchTerm={searchTerm}
+                  darkMode={darkMode}
                 />
-              </label>
+              ))}
             </div>
 
-            {/* DOCUMENT STATS */}
-            <div className={`mb-6 p-4 rounded-xl ${darkMode ? 'bg-slate-750 border border-slate-700' : 'bg-blue-50 border border-blue-200'}`}>
-              <div className="flex items-center gap-2 mb-3">
-                <BarChart3 size={18} className={darkMode ? 'text-blue-400' : 'text-blue-600'} />
-                <h3 className={`text-sm font-bold ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>Document Stats</h3>
+            <div className={`p-4 border-t text-xs flex items-center justify-between ${darkMode ? 'border-slate-700 text-slate-400' : 'border-gray-200 text-gray-600'
+              }`}>
+              <span>{sections.length} sections</span>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span>{autoSaveStatus}</span>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Sections:</span>
-                  <span className={`text-sm font-bold ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{stats.sections}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Images:</span>
-                  <span className={`text-sm font-bold ${darkMode ? 'text-purple-400' : 'text-purple-600'}`}>{stats.images}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Max Depth:</span>
-                  <span className={`text-sm font-bold ${darkMode ? 'text-pink-400' : 'text-pink-600'}`}>{stats.depth}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* HIERARCHY GUIDE */}
-            <div className={`mb-6 p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'}`}>
-              <div className="flex items-center gap-2 mb-3">
-                <Layers size={18} className={darkMode ? 'text-purple-400' : 'text-purple-600'} />
-                <h3 className={`text-sm font-bold ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>Hierarchy Guide</h3>
-              </div>
-              <div className="space-y-2">
-                {LEVEL_COLORS.map((color, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded border-2 ${color.border}`}></div>
-                    <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>Level {idx + 1}</span>
-                  </div>
-                ))}
-              </div>
-              <div className={`mt-3 pt-3 border-t ${darkMode ? 'border-purple-700/50' : 'border-purple-200'}`}>
-                <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                  <strong>Max Limits:</strong><br/>
-                  • 10 subsections per parent<br/>
-                  • 5 hierarchy levels deep
-                </p>
-              </div>
-            </div>
-
-            {/* PRO TIPS */}
-            <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-750 border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
-              <h3 className={`text-xs font-bold mb-3 uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>💡 Pro Tips</h3>
-              <ul className={`text-xs space-y-2 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-500 font-bold">•</span>
-                  <span>Drag sections to reorder within same level</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-500 font-bold">•</span>
-                  <span>Use subsections to organize content hierarchically</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-pink-500 font-bold">•</span>
-                  <span>Images auto-labeled alphabetically</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-orange-500 font-bold">•</span>
-                  <span>Toggle image position per section</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-teal-500 font-bold">•</span>
-                  <span>Manage multiple documents with tabs</span>
-                </li>
-              </ul>
             </div>
           </div>
         )}
 
-        {/* EDITOR OR PREVIEW */}
-        {!showPreview ? (
-          <div className={`flex-1 overflow-y-auto p-6 min-w-0 ${
-            darkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-blue-50 via-slate-50 to-blue-50'
-          }`}>
-            <div className={`rounded-xl shadow-2xl p-8 ${
-              darkMode ? 'bg-slate-800' : 'bg-white'
-            }`}>
-              <h2 className={`text-2xl font-bold mb-6 flex items-center gap-3 ${
-                darkMode ? 'text-slate-100' : 'text-slate-800'
-              }`}>
-                <span className="text-3xl">📝</span>
-                {activeDoc.name}
-              </h2>
-              
-              {sections.length === 0 ? (
-                <div className={`text-center py-20 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                  <FileText size={80} className="mx-auto mb-6 opacity-40" />
-                  <p className="text-xl font-semibold mb-2">No sections yet</p>
-                  <p className="text-sm">Click "Add Section" in the sidebar to get started</p>
-                </div>
+        {/* MAIN EDITOR/PREVIEW */}
+        {previewMode === 'full' ? (
+          <div className="flex-1">
+            <Preview sections={sections} darkMode={darkMode} />
+          </div>
+        ) : (
+          <div className="flex-1 flex main-container overflow-hidden">
+            {/* EDITOR */}
+            <div
+              className={`flex flex-col ${darkMode ? 'bg-slate-900' : 'bg-white'}`}
+              style={{ width: previewMode === 'split' ? `${previewWidth}%` : '100%' }}>
+                {selectedSection ? (
+                <>
+                  {/* Validation Warning Banner */}
+                  {!isSectionValid(selectedSection) && (
+                    <div className="bg-red-500 text-white px-4 py-3 flex items-center gap-2">
+                      <span className="text-xl">⚠️</span>
+                      <div>
+                        <p className="font-semibold">Invalid Section</p>
+                        <p className="text-sm">This section needs at least a heading or content. Images alone are not sufficient.</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Formatting Toolbar */}
+                  <div className={`border-b ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-gray-200 bg-gray-50'} p-4`}>
+               <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <select
+                          value={selectedSection.fontSize || '16'}
+                          onChange={(e) => updateSection(selectedSectionId, 'fontSize', e.target.value)}
+                          className={`px-3 py-2 rounded-lg border text-sm ${darkMode
+                            ? 'bg-slate-700 border-slate-600 text-slate-200'
+                            : 'bg-white border-gray-300 text-slate-900'
+                            }`}
+                        >
+                          <option value="12">12px</option>
+                          <option value="14">14px</option>
+                          <option value="16">16px</option>
+                          <option value="18">18px</option>
+                          <option value="20">20px</option>
+                          <option value="24">24px</option>
+                        </select>
+                        <div className={`w-px h-8 ${darkMode ? 'bg-slate-600' : 'bg-gray-300'}`}></div>
+                        <button
+                          onClick={() => insertFormatting('**', '**')}
+                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
+                          title="Bold"
+                        >
+                          <span className="text-base font-bold">𝐁</span>
+                        </button>
+                        <button
+                          onClick={() => insertFormatting('_', '_')}
+                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
+                          title="Italic"
+                        >
+                          <span className="text-base italic">𝐼</span>
+                        </button>
+                        <button
+                          onClick={() => insertFormatting('[LINK]')}
+                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
+                          title="Insert Link"
+                        >
+                          <span className="text-base">🔗</span>
+                        </button>
+                        <button
+                          onClick={() => insertFormatting('- ', '')}
+                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
+                          title="Bullet List"
+                        >
+                          <span className="text-base">•</span>
+                        </button>
+                        <button
+                          onClick={() => insertFormatting('1. ', '')}
+                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
+                          title="Numbered List"
+                        >
+                          <span className="text-base">1.</span>
+                        </button>
+                        <button
+                          onClick={() => insertFormatting('---\n', '')}
+                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
+                          title="Horizontal Line"
+                        >
+                          <span className="text-base">─</span>
+                        </button>
+                      </div>
+                      
+                      {/* Add Image Button - Right Side */}
+                      <label className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-all ${darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'}`}>
+                        <Upload size={16} />
+                        <span className="text-sm font-medium">Add Image</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg"
+                          onChange={(e) => handleImageUpload(e.target.files[0])}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                        Section Heading
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedSection.name || ''}
+                        onChange={(e) => updateSection(selectedSectionId, 'name', e.target.value)}
+                        placeholder="Enter section heading (e.g., Introduction, Chapter 1)"
+                        className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg font-semibold ${darkMode
+                          ? 'bg-slate-800 border-slate-600 text-slate-100 placeholder-slate-500'
+                          : 'bg-white border-gray-300 text-slate-900 placeholder-gray-400'
+                          }`}
+                      />
+                    </div>
+
+                    <div className="flex-1 flex flex-col">
+                      <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                        Section Content
+                      </label>
+                      <textarea
+                        ref={textareaRef}
+                        value={selectedSection.content || ''}
+                        onChange={(e) => updateSection(selectedSectionId, 'content', e.target.value)}
+                        placeholder="Start writing your content..."
+                        style={{ fontSize: `${selectedSection.fontSize || 16}px` }}
+                        className={`flex-1 w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none ${darkMode
+                          ? 'bg-slate-800 border-slate-600 text-slate-100 placeholder-slate-500'
+                          : 'bg-white border-gray-300 text-slate-900 placeholder-gray-400'
+                          }`}
+                      />
+
+                      {selectedSection.images && selectedSection.images.length > 0 && (
+                        <div className="mt-6">
+                          <div className="flex items-center justify-between mb-3">
+                            <label className={`text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                              Images
+                            </label>
+                            <button
+                              onClick={() => updateSection(selectedSectionId, 'imagePosition',
+                                selectedSection.imagePosition === 'above' ? 'below' : 'above')}
+                              className={`text-xs px-3 py-1 rounded-lg ${darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                              Change Position: {selectedSection.imagePosition === 'above' ? 'Above Text' : 'Below Text'}
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-6 flex-wrap mt-6">
+                            {selectedSection.images.map((img, idx) => {
+                              const moveLeft = swappingIndex === idx - 1;
+                              const moveRight = swappingIndex === idx;
+
+                              return (
+                                <React.Fragment key={idx}>
+                                  {/* IMAGE CARD */}
+                                  <div
+                                    className={`relative group
+            transition-transform
+            duration-[420ms]
+            ${moveLeft ? '-translate-x-[110px]' : ''}
+            ${moveRight ? 'translate-x-[110px]' : ''}
+          `}
+                                    style={{
+                                      transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                    }}
+                                  >
+                                    <div
+                                      className={`border rounded-md overflow-hidden w-[88px]
+            ${darkMode ? 'border-slate-600' : 'border-gray-300'}`}
+                                    >
+                                      <img
+                                        src={img.preview}
+                                        alt={img.label}
+                                        className="w-[88px] h-[88px] object-cover"
+                                      />
+                                      <div
+                                        className={`text-[10px] text-center py-0.5
+              ${darkMode ? 'bg-slate-700 text-slate-200' : 'bg-gray-100 text-gray-700'}`}
+                                      >
+                                        {img.label}
+                                      </div>
+                                    </div>
+
+                                    {/* DELETE (EDGE, HOVER ONLY) */}
+                                    <button
+                                      onClick={() => deleteImage(idx)}
+                                      className="absolute -top-2 -right-2 w-5 h-5 rounded-full
+                       bg-red-500 text-white text-[10px]
+                       flex items-center justify-center
+                       shadow-md hover:bg-red-600
+                       opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      ✕
+                                    </button>
+
+                                    {/* EDIT (CENTER, GLASS EFFECT) */}
+                                    <label
+                                      className="absolute inset-0 flex items-center justify-center
+                       opacity-0 group-hover:opacity-100 transition-opacity
+                       cursor-pointer"
+                                    >
+                                      <div
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center
+                          backdrop-blur-sm shadow-lg
+                          ${darkMode
+                                            ? 'bg-slate-800/70 text-slate-200'
+                                            : 'bg-white/70 text-gray-700'}`}
+                                      >
+                                        ✎
+                                      </div>
+
+                                      <input
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/jpg"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files[0];
+                                          if (!file) return;
+
+                                          const reader = new FileReader();
+                                          reader.onloadend = () => {
+                                            const updatedImages = [...selectedSection.images];
+                                            updatedImages[idx] = {
+                                              ...updatedImages[idx],
+                                              file,
+                                              preview: reader.result,
+                                            };
+                                            updateSection(selectedSectionId, 'images', updatedImages);
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }}
+                                      />
+                                    </label>
+                                  </div>
+
+                                  {/* ⇄ SPRING SWAP BUTTON */}
+                                  {idx < selectedSection.images.length - 1 && (
+                                    <button
+                                      onClick={() => swapImagesWithSpring(idx)}
+                                      className={`w-10 h-10 rounded-full flex items-center justify-center
+                        shadow-md transition
+                        ${darkMode
+                                          ? 'bg-slate-700 text-slate-200 hover:bg-slate-600'
+                                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                                      title="Swap images"
+                                    >
+                                      ⇄
+                                    </button>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </div>
+
+
+                        </div>
+                      )}
+
+                      
+                    </div>
+
+                    <div className={`border-t px-4 py-3 flex items-center justify-between text-xs ${darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-gray-200 bg-gray-50 text-gray-600'
+                      }`}>
+                      <span>{totalChars} characters</span>
+                      <span>{totalWords} words</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span>{autoSaveStatus}</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
               ) : (
-                <div className="space-y-4">
-                  {topLevelSections.map((section, idx) => (
-                    <Section
-                      key={section.id}
-                      section={section}
-                      sections={sections}
-                      level={0}
-                      onUpdate={updateSection}
-                      onDelete={deleteSection}
-                      onAddChild={addSection}
-                      onImageUpload={handleImageUpload}
-                      onMoveUp={(id) => moveSection(id, 'up')}
-                      onMoveDown={(id) => moveSection(id, 'down')}
-                      canMoveUp={idx > 0}
-                      canMoveDown={idx < topLevelSections.length - 1}
-                      darkMode={darkMode}
-                    />
-                  ))}
+                <div className={`flex-1 flex items-center justify-center ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
+                  <div className="text-center">
+                    <FileText size={64} className="mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium">No section selected</p>
+                    <p className="text-sm mt-2">Select a section from the sidebar or create a new one</p>
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-        ) : (
-          <div className="flex-1 min-w-0">
-            <Preview sections={sections} darkMode={darkMode} />
+
+            {/* SPLIT PREVIEW */}
+            {previewMode === 'split' && (
+              <>
+                <div
+                  className={`w-1 cursor-col-resize hover:bg-indigo-500 transition-colors ${darkMode ? 'bg-slate-700' : 'bg-gray-300'
+                    } ${isResizing ? 'bg-indigo-500' : ''}`}
+                  onMouseDown={handleMouseDown}
+                />
+                <div
+                  className="flex-1 overflow-hidden"
+                  style={{ width: `${100 - previewWidth}%` }}
+                >
+                  <Preview sections={sections} darkMode={darkMode} />
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -1275,3 +1428,7 @@ const DynamicDocumentBuilder = () => {
 };
 
 export default DynamicDocumentBuilder;
+
+
+
+
