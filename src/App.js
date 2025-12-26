@@ -1,10 +1,179 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, Download, Upload, FileText, X, File, FileJson, FileCode, ChevronDown, ChevronRight, Moon, Sun, Copy, Search, Eye, Maximize2 } from 'lucide-react';
 import { Notification } from './components/Notification'
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 // ==================== UTILITIES ====================
 const generateId = () => `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+const editorStyles = `
+  /* Quill Editor Custom Styles */
+  .quill {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  
+  .quill .ql-toolbar {
+    border: none;
+    border-bottom: 1px solid;
+    padding: 8px 12px;
+    background: transparent;
+  }
+  
+  .quill .ql-container {
+    flex: 1;
+    overflow-y: auto;
+    font-family: inherit;
+    border: none;
+  }
+  
+  .quill .ql-editor {
+    padding: 16px;
+    font-size: 16px;
+    min-height: 200px;
+  }
+  
+  .quill .ql-editor.ql-blank::before {
+    color: #9ca3af;
+    font-style: normal;
+    left: 16px;
+  }
+  
+  /* Toolbar button styling */
+  .quill .ql-toolbar button {
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+    border-radius: 6px;
+  }
+  
+  .quill .ql-toolbar .ql-picker {
+    border-radius: 6px;
+  }
+  
+  .quill .ql-toolbar .ql-picker-label {
+    border-radius: 6px;
+    padding: 6px 8px;
+  }
+  
+  /* Light mode styles */
+  .quill .ql-toolbar {
+    border-bottom-color: #e5e7eb;
+    background: #ffffff;
+  }
+  
+  .quill .ql-container {
+    background: #ffffff;
+  }
+  
+  .quill .ql-stroke {
+    stroke: #374151;
+  }
+  
+  .quill .ql-fill {
+    fill: #374151;
+  }
+  
+  .quill .ql-picker-label {
+    color: #374151;
+  }
+  
+  .quill .ql-toolbar button:hover {
+    background: #f3f4f6;
+  }
+  
+  .quill .ql-toolbar button.ql-active {
+    background: #e0e7ff;
+  }
+  
+  .quill .ql-toolbar button.ql-active .ql-stroke {
+    stroke: #4f46e5;
+  }
+  
+  .quill .ql-toolbar button.ql-active .ql-fill {
+    fill: #4f46e5;
+  }
+  
+  /* Dark mode styles */
+  .dark-quill .ql-toolbar {
+    background: #1e293b;
+    border-bottom-color: #475569;
+  }
+  
+  .dark-quill .ql-container {
+    background: #1e293b;
+  }
+  
+  .dark-quill .ql-editor {
+    color: #f1f5f9;
+  }
+  
+  .dark-quill .ql-stroke {
+    stroke: #cbd5e1;
+  }
+  
+  .dark-quill .ql-fill {
+    fill: #cbd5e1;
+  }
+  
+  .dark-quill .ql-picker-label {
+    color: #cbd5e1;
+  }
+  
+  .dark-quill .ql-picker-options {
+    background: #334155;
+    border-color: #475569;
+  }
+  
+  .dark-quill .ql-toolbar button:hover {
+    background: #334155;
+  }
+  
+  .dark-quill .ql-toolbar button.ql-active {
+    background: #312e81;
+  }
+  
+  .dark-quill .ql-toolbar button:hover .ql-stroke,
+  .dark-quill .ql-toolbar button.ql-active .ql-stroke {
+    stroke: #818cf8;
+  }
+  
+  .dark-quill .ql-toolbar button:hover .ql-fill,
+  .dark-quill .ql-toolbar button.ql-active .ql-fill {
+    fill: #818cf8;
+  }
+  
+  /* Compact heading editor */
+  .heading-quill .ql-toolbar {
+    padding: 4px 8px;
+  }
+  
+  .heading-quill .ql-toolbar button {
+    width: 28px;
+    height: 28px;
+  }
+    .heading-quill .ql-editor {
+    padding: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    min-height: 40px;
+  }
+  
+  /* Quill font size classes */
+  .ql-size-small {
+    font-size: 0.75em;
+  }
+  
+  .ql-size-large {
+    font-size: 1.5em;
+  }
+  
+  .ql-size-huge {
+    font-size: 2.5em;
+  }
 
+`;
 
 const buildHierarchy = (sections) => {
   const sectionMap = {};
@@ -25,27 +194,40 @@ const buildHierarchy = (sections) => {
   return hierarchy;
 };
 
-const countWords = (text) => {
+const stripHtmlTags = (html) => {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  return tmp.textContent || tmp.innerText || '';
+};
+
+const countWords = (html) => {
+  const text = stripHtmlTags(html);
   return text.trim() ? text.trim().split(/\s+/).length : 0;
 };
 
-const countCharacters = (text) => {
+const countCharacters = (html) => {
+  const text = stripHtmlTags(html);
   return text.length;
 };
 
 const generateMarkdown = (hierarchy, level = 1) => {
   let markdown = '';
 
+  const stripHtml = (html) => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html || '';
+    return tmp.textContent || tmp.innerText || '';
+  };
+
   const processSection = (section, currentLevel) => {
     if (section.name) {
       const heading = '#'.repeat(currentLevel);
-      markdown += `${heading} ${section.name}\n\n`;
+      const plainName = stripHtml(section.name);
+      markdown += `${heading} ${plainName}\n\n`;
     }
 
-    // Handle image position
     const imagePosition = section.imagePosition || 'below';
 
-    // Images ABOVE content
     if (imagePosition === 'above' && section.images && section.images.length > 0) {
       section.images.forEach((img) => {
         markdown += `![${img.label}](${img.preview})\n\n`;
@@ -53,10 +235,12 @@ const generateMarkdown = (hierarchy, level = 1) => {
     }
 
     if (section.content) {
-      markdown += `${section.content}\n\n`;
+      const plainContent = stripHtml(section.content);
+      if (plainContent.trim()) {
+        markdown += `${plainContent}\n\n`;
+      }
     }
 
-    // Images BELOW content (default)
     if (imagePosition === 'below' && section.images && section.images.length > 0) {
       section.images.forEach((img) => {
         markdown += `![${img.label}](${img.preview})\n\n`;
@@ -84,26 +268,14 @@ const downloadFile = (content, filename, type = 'text/plain') => {
   URL.revokeObjectURL(url);
 };
 
-const renderMarkdown = (text) => {
-  if (!text) return '';
-
-  let html = text
-    // Bold
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    // Italic
-    .replace(/\_(.+?)\_/g, '<em>$1</em>')
-    // Links
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>')
-    // Horizontal rule
-    .replace(/^---$/gm, '<hr class="my-4 border-gray-300" />')
-    // Bullet lists
-    .replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>')
-    // Numbered lists
-    .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>')
-    // Line breaks
-    .replace(/\n/g, '<br />');
-
-  return html;
+const renderMarkdown = (htmlContent) => {
+  if (!htmlContent) return '';
+  // Quill outputs HTML directly, so we can return it as-is
+  // Just add some class mappings for consistency
+  return htmlContent
+    .replace(/<p>/g, '<p class="mb-2">')
+    .replace(/<ul>/g, '<ul class="ml-4 list-disc">')
+    .replace(/<ol>/g, '<ol class="ml-4 list-decimal">');
 };
 
 // ==================== COMPONENTS ====================
@@ -162,15 +334,75 @@ const DownloadModal = ({ onClose, onDownload, darkMode }) => {
   );
 };
 
+const ConfirmModal = ({ onClose, onConfirm, title, message, confirmText = 'Delete', cancelText = 'Cancel', darkMode, type = 'danger' }) => {
+  const buttonColors = {
+    danger: 'bg-red-600 hover:bg-red-700',
+    warning: 'bg-yellow-600 hover:bg-yellow-700',
+    info: 'bg-blue-600 hover:bg-blue-700'
+  };
 
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className={`${darkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl shadow-2xl max-w-md w-full p-6`}>
+        <div className="flex items-start gap-4 mb-6">
+          <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
+            type === 'danger' ? 'bg-red-100' : type === 'warning' ? 'bg-yellow-100' : 'bg-blue-100'
+          }`}>
+            <Trash2 size={24} className={
+              type === 'danger' ? 'text-red-600' : type === 'warning' ? 'text-yellow-600' : 'text-blue-600'
+            } />
+          </div>
+          <div className="flex-1">
+            <h2 className={`text-xl font-bold mb-2 ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+              {title}
+            </h2>
+            <p className={`text-sm whitespace-pre-line ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+              {message}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 justify-end">
+          {cancelText && (
+            <button
+              onClick={onClose}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                darkMode 
+                  ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {cancelText}
+            </button>
+          )}
+          <button
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className={`px-4 py-2 rounded-lg font-medium text-white transition-all ${buttonColors[type]}`}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const SidebarSection = ({ section, sections, level, onSelect, selectedId, onDelete, onAddChild, onDuplicate, onDragStart, onDragOver, onDrop, searchTerm, darkMode }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const childSections = sections.filter(s => s.parentId === section.id);
 
-  // Auto-generate name from content
-  const displayName = section.name ||
-    (section.content ? section.content.substring(0, 30).trim() || 'Untitled' : 'Untitled');
+// Auto-generate name from content - strip HTML tags for display
+const stripHtml = (html) => {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  return tmp.textContent || tmp.innerText || '';
+};
+
+const displayName = stripHtml(section.name) ||
+  (section.content ? stripHtml(section.content).substring(0, 30).trim() || 'Untitled' : 'Untitled');
 
   const matchesSearch = !searchTerm ||
     displayName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -264,7 +496,7 @@ className={`group relative flex items-start gap-2 py-2 px-3 rounded-lg cursor-po
         <div>
           {childSections.map(child => (
             <SidebarSection
-              key={child.id}
+              key={`${child.id}-${child.name}`}
               section={child}
               sections={sections}
               level={level + 1}
@@ -286,34 +518,31 @@ className={`group relative flex items-start gap-2 py-2 px-3 rounded-lg cursor-po
   );
 };
 
-const Preview = ({ sections, darkMode }) => {
+const Preview = ({ sections, darkMode, documentName }) => {
   const hierarchy = buildHierarchy(sections);
-
-
 const renderPreviewSection = (section, level = 1) => {
   const HeadingTag = `h${Math.min(level, 6)}`;
   
   // DEFAULT imagePosition to 'below' if not set
   const imagePosition = section.imagePosition || 'below';
 
-  return (
-    <div key={section.id} className="mb-6">
-      <div
+return (
+    <div key={section.id} className="mb-8">
+<div
         className={`p-6 rounded-lg transition-all border ${
-          darkMode ? 'border-slate-700 bg-slate-800 bg-opacity-30' : 'border-gray-200 bg-gray-50'
+          darkMode ? 'border-slate-700 bg-slate-800 bg-opacity-30' : 'border-slate-200 bg-slate-50'
         }`}
         style={{ marginLeft: `${(level - 1) * 24}px` }}
       >
-        {section.name && (
-          <HeadingTag
-            className={`font-bold mb-4 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}
-            style={{
-              fontSize: level === 1 ? '2rem' : level === 2 ? '1.5rem' : level === 3 ? '1.25rem' : '1rem'
-            }}
-          >
-            {section.name}
-          </HeadingTag>
-        )}
+{section.name && (
+  <HeadingTag
+    className={`font-bold mb-4 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}
+    style={{
+      fontSize: level === 1 ? '2rem' : level === 2 ? '1.5rem' : level === 3 ? '1.25rem' : '1rem'
+    }}
+    dangerouslySetInnerHTML={{ __html: section.name }}
+  />
+)}
 
         {/* IMAGES ABOVE - Check if images exist AND position is above */}
         {imagePosition === 'above' && section.images && section.images.length > 0 && (
@@ -331,13 +560,12 @@ const renderPreviewSection = (section, level = 1) => {
           </div>
         )}
 
-        {section.content && (
-          <div
-            className={`${darkMode ? 'text-slate-300' : 'text-slate-700'}`}
-            style={{ fontSize: `${section.fontSize || 16}px` }}
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(section.content) }}
-          />
-        )}
+{section.content && (
+  <div
+    className={`${darkMode ? 'text-slate-300' : 'text-slate-700'}`}
+    dangerouslySetInnerHTML={{ __html: section.content }}
+  />
+)}
 
         {/* IMAGES BELOW - This is the default, so check for 'below' OR undefined */}
         {(imagePosition === 'below' || !imagePosition) && section.images && section.images.length > 0 && (
@@ -364,29 +592,28 @@ const renderPreviewSection = (section, level = 1) => {
     </div>
   );
 };
-  if (sections.length === 0) {
-    return (
-      <div className={`flex items-center justify-center h-full ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-        <div className="text-center">
-          <FileText size={64} className="mx-auto mb-4 opacity-50" />
-          <p className="text-lg font-medium">No content to preview</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
+return (
     <div className={`h-full overflow-y-auto p-8 ${darkMode ? 'bg-slate-900' : 'bg-gray-50'}`}>
-      <div className={`max-w-4xl mx-auto p-8 rounded-xl border-2 shadow-2xl ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-300'
+      <div className={`max-w-4xl mx-auto p-8 rounded-xl border-2 shadow-2xl ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
         }`}>
-        <h1 className="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
-          Document Preview
+<h1 className="text-4xl font-bold mb-8 text-center text-slate-800" style={{ color: darkMode ? '#e2e8f0' : '#1e3a8a' }}>
+          {documentName || 'Document Preview'}
         </h1>
-        {hierarchy.map((section) => renderPreviewSection(section, 1))}
+        {hierarchy.length === 0 ? (
+          <div className={`flex items-center justify-center py-20 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            <div className="text-center">
+              <FileText size={64} className="mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium">No content to preview</p>
+            </div>
+          </div>
+        ) : (
+          hierarchy.map((section) => renderPreviewSection(section, 1))
+        )}
       </div>
     </div>
   );
 };
+
 
 const DynamicDocumentBuilder = () => {
   const [documents, setDocuments] = useState([
@@ -397,31 +624,53 @@ const DynamicDocumentBuilder = () => {
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [notification, setNotification] = useState('');
   const [previewMode, setPreviewMode] = useState('none');
-  const [previewWidth, setPreviewWidth] = useState(50);
-  const [darkMode, setDarkMode] = useState(false);
+const [previewWidth, setPreviewWidth] = useState(50);
+const [sidebarWidth, setSidebarWidth] = useState(256); // 256px = 16rem (w-64)
+  const [darkMode, setDarkMode] = useState(() => {
+    // Check browser's default color scheme preference
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [autoSaveStatus, setAutoSaveStatus] = useState('Saved');
-  const [isResizing, setIsResizing] = useState(false);
+const [isResizing, setIsResizing] = useState(false);
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [rotatingIndex, setRotatingIndex] = useState(null);
   const [swappingIndex, setSwappingIndex] = useState(null);
+const [confirmModal, setConfirmModal] = useState(null);  // ADD THIS LINE
 
-
-  const textareaRef = useRef(null);
 
   const activeDoc = documents.find(d => d.id === activeDocId);
   const sections = activeDoc ? activeDoc.sections : [];
   const selectedSection = sections.find(s => s.id === selectedSectionId);
+const quillModules = {
+    toolbar: [
+      [{ 'size': ['small', false, 'large', 'huge'] }],
+      ['bold', 'italic', 'underline'],
+      ['link'],
+      [{ 'list': 'bullet' }, { 'list': 'ordered' }],
+      [{ 'indent': '-1'}, { 'indent': '+1' }]
+    ]
+  };
 
-  const setSections = (newSections) => {
+  const quillFormats = [
+    'size',
+    'bold', 'italic', 'underline',
+    'link',
+    'list', 'bullet',
+    'indent'
+  ];
+const setSections = (newSections, skipHistory = false) => {
     const updatedSections = typeof newSections === 'function' ? newSections(sections) : newSections;
 
-    // Add to history
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(updatedSections);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
+    // Add to history only if not skipped (for undo/redo operations)
+    if (!skipHistory) {
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(updatedSections);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    }
 
     setDocuments(docs => docs.map(doc =>
       doc.id === activeDocId ? { ...doc, sections: updatedSections } : doc
@@ -471,12 +720,17 @@ const DynamicDocumentBuilder = () => {
     showNotification('Document duplicated!');
   };
 
-  const deleteDocument = (docId) => {
-    if (documents.length === 1) {
-      showNotification('Cannot delete last document');
-      return;
-    }
-    if (window.confirm('Delete this document?')) {
+const deleteDocument = (docId) => {
+  if (documents.length === 1) {
+    showNotification('Cannot delete last document');
+    return;
+  }
+  
+  setConfirmModal({
+    title: 'Delete Document',
+    message: 'Are you sure you want to delete this document? This action cannot be undone.',
+    confirmText: 'Delete Document',
+    onConfirm: () => {
       const newDocs = documents.filter(d => d.id !== docId);
       setDocuments(newDocs);
       if (activeDocId === docId) {
@@ -485,7 +739,8 @@ const DynamicDocumentBuilder = () => {
       }
       showNotification('Document deleted');
     }
-  };
+  });
+};
 
   const renameDocument = (docId, newName) => {
     setDocuments(docs => docs.map(doc =>
@@ -509,15 +764,18 @@ const DynamicDocumentBuilder = () => {
   };
 
   // Validation function to check if a section is valid
-  const isSectionValid = (section) => {
-    const hasName = section.name && section.name.trim().length > 0;
-    const hasContent = section.content && section.content.trim().length > 0;
-    const hasImages = section.images && section.images.length > 0;
-
-    // Section must have at least name OR content
-    // Images alone are not sufficient
-    return hasName || hasContent;
+const isSectionValid = (section) => {
+  const stripHtml = (html) => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html || '';
+    return tmp.textContent || tmp.innerText || '';
   };
+  
+  const hasName = stripHtml(section.name).trim().length > 0;
+  const hasContent = stripHtml(section.content).trim().length > 0;
+  
+  return hasName || hasContent;
+};
 
   // Validate all sections before export
   const validateSectionsForExport = () => {
@@ -638,7 +896,11 @@ const parseMarkdownToSections = (markdown) => {
   };
 
   const deleteSection = (id) => {
-    if (window.confirm('Delete this section and all its subsections?')) {
+  setConfirmModal({
+    title: 'Delete Section',
+    message: 'Are you sure you want to delete this section and all its subsections? This action cannot be undone.',
+    confirmText: 'Delete Section',
+    onConfirm: () => {
       const deleteRecursive = (sectionId) => {
         const children = sections.filter(s => s.parentId === sectionId);
         children.forEach(child => deleteRecursive(child.id));
@@ -650,7 +912,8 @@ const parseMarkdownToSections = (markdown) => {
       }
       showNotification('Section deleted');
     }
-  };
+  });
+};
 
   const duplicateSection = (sectionId) => {
     const section = sections.find(s => s.id === sectionId);
@@ -722,42 +985,8 @@ const handleImageUpload = (file) => {
     updateSection(selectedSectionId, 'images', images);
     showNotification('Image removed');
   };
-  const insertFormatting = (prefix, suffix = '') => {
-    if (!textareaRef.current) return;
-
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const content = selectedSection.content || '';
-    const selectedText = content.substring(start, end);
-
-    let newText;
-    let newCursorPos = start + prefix.length;
-
-    if (prefix === '[LINK]') {
-      const url = prompt('Enter URL:');
-      if (url) {
-        newText = content.substring(0, start) + `[${selectedText || 'Link Text'}](${url})` + content.substring(end);
-        newCursorPos = start + (selectedText ? selectedText.length : 9) + 3;
-      } else {
-        return;
-      }
-    } else {
-      newText = content.substring(0, start) + prefix + selectedText + suffix + content.substring(end);
-      newCursorPos = end + prefix.length + suffix.length;
-    }
-
-    updateSection(selectedSectionId, 'content', newText);
-
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-      }
-    }, 10);
-  };
-
-  const undo = () => {
+  
+const undo = () => {
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
@@ -765,10 +994,11 @@ const handleImageUpload = (file) => {
       setDocuments(docs => docs.map(doc =>
         doc.id === activeDocId ? { ...doc, sections: previousState } : doc
       ));
+      setAutoSaveStatus('Saving...');
+      setTimeout(() => setAutoSaveStatus('Saved'), 500);
     }
   };
-
-  const redo = () => {
+const redo = () => {
     if (historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
@@ -776,6 +1006,8 @@ const handleImageUpload = (file) => {
       setDocuments(docs => docs.map(doc =>
         doc.id === activeDocId ? { ...doc, sections: nextState } : doc
       ));
+      setAutoSaveStatus('Saving...');
+      setTimeout(() => setAutoSaveStatus('Saved'), 500);
     }
   };
   const handleDragStart = (e, sectionId) => {
@@ -813,38 +1045,54 @@ const handleImageUpload = (file) => {
     updateSection(draggedId, 'parentId', targetParentId);
     showNotification('Section moved');
   };
-
-  const handleDownload = (format) => {
-    if (sections.length === 0) {
-      showNotification('Add sections first');
-      setShowDownloadModal(false);
-      return;
-    }
-
-    // Validate sections before export
-    const validation = validateSectionsForExport();
-    if (!validation.valid) {
-      alert(validation.message);
-      setShowDownloadModal(false);
-      return;
-    }
-
-    const hierarchy = buildHierarchy(sections);
-
-    switch (format) {
-      case 'markdown':
-        const markdown = generateMarkdown(hierarchy);
-        downloadFile(markdown, `${activeDoc.name}.md`);
-        showNotification('Markdown downloaded!');
-        break;
-      case 'json':
-        downloadFile(JSON.stringify(hierarchy, null, 2), `${activeDoc.name}.json`, 'application/json');
-        showNotification('JSON downloaded!');
-        break;
-    }
-
+const handleDownload = (format) => {
+  if (sections.length === 0) {
+    showNotification('Add sections first');
     setShowDownloadModal(false);
-  };
+    return;
+  }
+
+  // Validate sections before export
+  const validation = validateSectionsForExport();
+  if (!validation.valid) {
+    setShowDownloadModal(false);
+    
+    // Get list of invalid sections with better descriptions
+    const invalidSections = sections.filter(s => !isSectionValid(s));
+    const sectionList = invalidSections.map((s, idx) => {
+      if (s.images && s.images.length > 0 && !s.name?.trim() && !s.content?.trim()) {
+        return `${idx + 1}. Section with ${s.images.length} image(s) - Missing heading or content`;
+      }
+      return `${idx + 1}. Empty section - Add heading or content`;
+    }).join('\n');
+    
+    setConfirmModal({
+      title: 'Cannot Export - Incomplete Sections',
+      message: `Please complete these sections before exporting:\n\n${sectionList}\n\nEach section must have at least a heading or content. Images alone are not sufficient.`,
+      confirmText: 'Got it',
+      cancelText: '',
+      type: 'warning',
+      onConfirm: () => {}
+    });
+    return;
+  }
+
+  const hierarchy = buildHierarchy(sections);
+
+  switch (format) {
+    case 'markdown':
+      const markdown = generateMarkdown(hierarchy);
+      downloadFile(markdown, `${activeDoc.name}.md`);
+      showNotification('Markdown downloaded!');
+      break;
+    case 'json':
+      downloadFile(JSON.stringify(hierarchy, null, 2), `${activeDoc.name}.json`, 'application/json');
+      showNotification('JSON downloaded!');
+      break;
+  }
+
+  setShowDownloadModal(false);
+};
   const swapImagesWithSpring = (idx) => {
     if (swappingIndex !== null) return; // prevent double clicks
 
@@ -879,11 +1127,30 @@ const handleImageUpload = (file) => {
     }
   };
 
-  const handleMouseUp = () => {
+const handleMouseUp = () => {
     setIsResizing(false);
   };
 
-  useEffect(() => {
+  const handleSidebarMouseDown = (e) => {
+    setIsResizingSidebar(true);
+    e.preventDefault();
+  };
+
+  const handleSidebarMouseMove = (e) => {
+    if (!isResizingSidebar) return;
+
+    const newWidth = e.clientX;
+
+    if (newWidth > 200 && newWidth < 500) {
+      setSidebarWidth(newWidth);
+    }
+  };
+
+  const handleSidebarMouseUp = () => {
+    setIsResizingSidebar(false);
+  };
+
+useEffect(() => {
     if (isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
@@ -894,12 +1161,72 @@ const handleImageUpload = (file) => {
     }
   }, [isResizing]);
 
+  useEffect(() => {
+    if (isResizingSidebar) {
+      document.addEventListener('mousemove', handleSidebarMouseMove);
+      document.addEventListener('mouseup', handleSidebarMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleSidebarMouseMove);
+        document.removeEventListener('mouseup', handleSidebarMouseUp);
+      };
+    }
+  }, [isResizingSidebar]);
+
+// Initialize history with empty state
+  useEffect(() => {
+    if (history.length === 0 && sections.length >= 0) {
+      setHistory([sections]);
+      setHistoryIndex(0);
+    }
+  }, [activeDocId]);
+
+  // Add keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [historyIndex, history]);
+
+ // Initialize history with empty state
+  useEffect(() => {
+    if (history.length === 0 && sections.length >= 0) {
+      setHistory([sections]);
+      setHistoryIndex(0);
+    }
+  }, [activeDocId]);
+
+  // Add keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [historyIndex, history]);
+
   const totalWords = selectedSection ? countWords(selectedSection.content || '') : 0;
   const totalChars = selectedSection ? countCharacters(selectedSection.content || '') : 0;
   const topLevelSections = sections.filter(s => !s.parentId);
 
   return (
     <div className={`h-screen flex flex-col ${darkMode ? 'bg-slate-900' : 'bg-white'}`}>
+      <style>{editorStyles}</style>
       <Notification message={notification} onClose={() => setNotification('')} darkMode={darkMode} />
 
       {showDownloadModal && (
@@ -909,6 +1236,17 @@ const handleImageUpload = (file) => {
           darkMode={darkMode}
         />
       )}
+      {confirmModal && (
+  <ConfirmModal
+    onClose={() => setConfirmModal(null)}
+    onConfirm={confirmModal.onConfirm}
+    title={confirmModal.title}
+    message={confirmModal.message}
+    confirmText={confirmModal.confirmText}
+    type={confirmModal.type || 'danger'}
+    darkMode={darkMode}
+  />
+)}
 
       {/* HEADER */}
       <div className={`${darkMode ? 'bg-slate-800 border-b border-slate-700' : 'bg-white border-b border-gray-200'} flex-shrink-0`}>
@@ -921,28 +1259,39 @@ const handleImageUpload = (file) => {
           </div>
 
             <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
+            <div className={`flex items-center gap-1 px-1 py-1 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-gray-100'}`}>
               <button
                 onClick={undo}
                 disabled={historyIndex <= 0}
-                className={`p-2 rounded-lg transition-colors ${historyIndex <= 0
-                  ? 'opacity-30 cursor-not-allowed'
-                  : darkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'
-                  }`}
+                className={`p-2 rounded-md transition-all flex items-center justify-center w-9 h-9 ${
+                  historyIndex <= 0
+                    ? 'opacity-30 cursor-not-allowed'
+                    : darkMode 
+                      ? 'hover:bg-slate-600 text-slate-200 hover:text-white' 
+                      : 'hover:bg-white text-gray-700 hover:text-indigo-600 shadow-sm'
+                }`}
                 title="Undo (Ctrl+Z)"
               >
-                <span className="text-lg">↶</span>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                </svg>
               </button>
+              <div className={`w-px h-6 ${darkMode ? 'bg-slate-600' : 'bg-gray-300'}`}></div>
               <button
                 onClick={redo}
                 disabled={historyIndex >= history.length - 1}
-                className={`p-2 rounded-lg transition-colors ${historyIndex >= history.length - 1
-                  ? 'opacity-30 cursor-not-allowed'
-                  : darkMode ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-100 text-gray-700'
-                  }`}
+                className={`p-2 rounded-md transition-all flex items-center justify-center w-9 h-9 ${
+                  historyIndex >= history.length - 1
+                    ? 'opacity-30 cursor-not-allowed'
+                    : darkMode 
+                      ? 'hover:bg-slate-600 text-slate-200 hover:text-white' 
+                      : 'hover:bg-white text-gray-700 hover:text-indigo-600 shadow-sm'
+                }`}
                 title="Redo (Ctrl+Y)"
               >
-                <span className="text-lg">↷</span>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6" />
+                </svg>
               </button>
             </div>
             <button
@@ -1044,11 +1393,16 @@ const handleImageUpload = (file) => {
         </div>
       </div>
 
-      {/* MAIN CONTENT */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* LEFT SIDEBAR */}
+{/* MAIN CONTENT */}
+      <div className={`flex-1 flex overflow-hidden ${isResizingSidebar ? 'select-none' : ''}`}>
+        
+{/* LEFT SIDEBAR */}
         {previewMode !== 'full' && (
-          <div className={`w-64 border-r flex flex-col ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+          <>
+            <div 
+              className={`border-r flex flex-col ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'}`}
+              style={{ width: `${sidebarWidth}px` }}
+            >
             <div className="p-4 border-b" style={{ borderColor: darkMode ? '#334155' : '#e5e7eb' }}>
               <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-white'}`}>
                 <Search size={16} className={darkMode ? 'text-slate-400' : 'text-gray-400'} />
@@ -1090,7 +1444,7 @@ const handleImageUpload = (file) => {
             <div className="flex-1 overflow-y-auto px-2">
               {topLevelSections.map((section) => (
                 <SidebarSection
-                  key={section.id}
+                  key={`${section.id}-${section.name}`}
                   section={section}
                   sections={sections}
                   level={0}
@@ -1115,14 +1469,23 @@ const handleImageUpload = (file) => {
                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
                 <span>{autoSaveStatus}</span>
               </div>
-            </div>
+        </div>
           </div>
-        )}
+          
+          {/* SIDEBAR RESIZE HANDLE */}
+          <div
+            className={`w-1 cursor-col-resize hover:bg-indigo-500 transition-colors ${
+              darkMode ? 'bg-slate-700' : 'bg-gray-300'
+            } ${isResizingSidebar ? 'bg-indigo-500' : ''}`}
+            onMouseDown={handleSidebarMouseDown}
+          />
+        </>
+        )}  
 
         {/* MAIN EDITOR/PREVIEW */}
-        {previewMode === 'full' ? (
+{previewMode === 'full' ? (
           <div className="flex-1">
-            <Preview sections={sections} darkMode={darkMode} />
+            <Preview sections={sections} darkMode={darkMode} documentName={activeDoc?.name} />
           </div>
         ) : (
           <div className="flex-1 flex main-container overflow-hidden">
@@ -1130,257 +1493,157 @@ const handleImageUpload = (file) => {
             <div
               className={`flex flex-col ${darkMode ? 'bg-slate-900' : 'bg-white'}`}
               style={{ width: previewMode === 'split' ? `${previewWidth}%` : '100%' }}>
-                {selectedSection ? (
-                <>
-                  {/* Validation Warning Banner */}
-                  {!isSectionValid(selectedSection) && (
-                    <div className="bg-red-500 text-white px-4 py-3 flex items-center gap-2">
-                      <span className="text-xl">⚠️</span>
-                      <div>
-                        <p className="font-semibold">Invalid Section</p>
-                        <p className="text-sm">This section needs at least a heading or content. Images alone are not sufficient.</p>
+               
+                      {selectedSection ? (
+  <>
+    <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
+      {/* Section Heading */}
+      <div>
+        <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+          Section Heading
+        </label>
+        <div className={`rounded-lg border ${darkMode ? 'border-slate-700' : 'border-gray-200'} overflow-hidden`} style={{ height: '100px' }}>
+          <ReactQuill
+            theme="snow"
+            value={selectedSection.name || ''}
+            onChange={(content) => updateSection(selectedSectionId, 'name', content)}
+            modules={{
+              toolbar: [
+                ['bold', 'italic', 'underline'],
+                [{ 'color': [] }]
+              ]
+            }}
+            formats={['bold', 'italic', 'underline', 'color']}
+            placeholder="Enter section heading..."
+            className={`${darkMode ? 'dark-quill' : ''} heading-quill`}
+            style={{ height: '100px' }}
+          />
+        </div>
+      </div>
+
+      {/* Section Content */}
+      <div className="flex-1" style={{ minHeight: '200px' }}>
+        <div className="flex items-center justify-between mb-2">
+          <label className={`text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+            Section Content
+          </label>
+          <label className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer text-xs font-medium transition-all ${
+            darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+          }`}>
+            <Upload size={14} />
+            Add Image
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/jpg"
+              onChange={(e) => handleImageUpload(e.target.files[0])}
+              className="hidden"
+            />
+          </label>
+        </div>
+        <div className={`rounded-lg border ${darkMode ? 'border-slate-700' : 'border-gray-200'} overflow-hidden`} style={{ height: 'calc(100% - 40px)' }}>
+          <ReactQuill
+            theme="snow"
+            value={selectedSection.content || ''}
+            onChange={(content) => updateSection(selectedSectionId, 'content', content)}
+            modules={quillModules}
+            formats={quillFormats}
+            placeholder="Start writing your content..."
+            className={darkMode ? 'dark-quill' : ''}
+            style={{ height: '100%' }}
+          />
+        </div>
+      </div>
+
+      {/* Images Display Section */}
+      {selectedSection.images && selectedSection.images.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-3">
+            <label className={`text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+              Images
+            </label>
+            <button
+              onClick={() => updateSection(selectedSectionId, 'imagePosition',
+                selectedSection.imagePosition === 'above' ? 'below' : 'above')}
+              className={`text-xs px-3 py-1 rounded-lg ${darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+            >
+              Position: {selectedSection.imagePosition === 'above' ? 'Above Text' : 'Below Text'}
+            </button>
+          </div>
+          <div className="flex items-center gap-6 flex-wrap">
+            {selectedSection.images.map((img, idx) => {
+              const moveLeft = swappingIndex === idx - 1;
+              const moveRight = swappingIndex === idx;
+
+              return (
+                <React.Fragment key={idx}>
+                  <div
+                    className={`relative group transition-transform duration-[420ms]
+                      ${moveLeft ? '-translate-x-[110px]' : ''}
+                      ${moveRight ? 'translate-x-[110px]' : ''}
+                    `}
+                    style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+                  >
+                    <div className={`border rounded-md overflow-hidden w-[88px] ${darkMode ? 'border-slate-600' : 'border-gray-300'}`}>
+                      <img src={img.preview} alt={img.label} className="w-[88px] h-[88px] object-cover" />
+                      <div className={`text-[10px] text-center py-0.5 ${darkMode ? 'bg-slate-700 text-slate-200' : 'bg-gray-100 text-gray-700'}`}>
+                        {img.label}
                       </div>
                     </div>
-                  )}
-                  
-                  {/* Formatting Toolbar */}
-                  <div className={`border-b ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-gray-200 bg-gray-50'} p-4`}>
-               <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-3">
-                        <select
-                          value={selectedSection.fontSize || '16'}
-                          onChange={(e) => updateSection(selectedSectionId, 'fontSize', e.target.value)}
-                          className={`px-3 py-2 rounded-lg border text-sm ${darkMode
-                            ? 'bg-slate-700 border-slate-600 text-slate-200'
-                            : 'bg-white border-gray-300 text-slate-900'
-                            }`}
-                        >
-                          <option value="12">12px</option>
-                          <option value="14">14px</option>
-                          <option value="16">16px</option>
-                          <option value="18">18px</option>
-                          <option value="20">20px</option>
-                          <option value="24">24px</option>
-                        </select>
-                        <div className={`w-px h-8 ${darkMode ? 'bg-slate-600' : 'bg-gray-300'}`}></div>
-                        <button
-                          onClick={() => insertFormatting('**', '**')}
-                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
-                          title="Bold"
-                        >
-                          <span className="text-base font-bold">𝐁</span>
-                        </button>
-                        <button
-                          onClick={() => insertFormatting('_', '_')}
-                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
-                          title="Italic"
-                        >
-                          <span className="text-base italic">𝐼</span>
-                        </button>
-                        <button
-                          onClick={() => insertFormatting('[LINK]')}
-                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
-                          title="Insert Link"
-                        >
-                          <span className="text-base">🔗</span>
-                        </button>
-                        <button
-                          onClick={() => insertFormatting('- ', '')}
-                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
-                          title="Bullet List"
-                        >
-                          <span className="text-base">•</span>
-                        </button>
-                        <button
-                          onClick={() => insertFormatting('1. ', '')}
-                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
-                          title="Numbered List"
-                        >
-                          <span className="text-base">1.</span>
-                        </button>
-                        <button
-                          onClick={() => insertFormatting('---\n', '')}
-                          className={`px-3 py-2 rounded-lg transition-all hover:scale-105 ${darkMode ? 'hover:bg-slate-700 text-slate-200 bg-slate-750' : 'hover:bg-gray-200 text-gray-700 bg-white border border-gray-300'}`}
-                          title="Horizontal Line"
-                        >
-                          <span className="text-base">─</span>
-                        </button>
+
+                    <button
+                      onClick={() => deleteImage(idx)}
+                      className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center shadow-md hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ✕
+                    </button>
+
+                    <label className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm shadow-lg ${
+                        darkMode ? 'bg-slate-800/70 text-slate-200' : 'bg-white/70 text-gray-700'
+                      }`}>
+                        ✎
                       </div>
-                      
-                      {/* Add Image Button - Right Side */}
-                      <label className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-all ${darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'}`}>
-                        <Upload size={16} />
-                        <span className="text-sm font-medium">Add Image</span>
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/jpg"
-                          onChange={(e) => handleImageUpload(e.target.files[0])}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                  <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                        Section Heading
-                      </label>
                       <input
-                        type="text"
-                        value={selectedSection.name || ''}
-                        onChange={(e) => updateSection(selectedSectionId, 'name', e.target.value)}
-                        placeholder="Enter section heading (e.g., Introduction, Chapter 1)"
-                        className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg font-semibold ${darkMode
-                          ? 'bg-slate-800 border-slate-600 text-slate-100 placeholder-slate-500'
-                          : 'bg-white border-gray-300 text-slate-900 placeholder-gray-400'
-                          }`}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            const updatedImages = [...selectedSection.images];
+                            updatedImages[idx] = { ...updatedImages[idx], file, preview: reader.result };
+                            updateSection(selectedSectionId, 'images', updatedImages);
+                          };
+                          reader.readAsDataURL(file);
+                        }}
                       />
-                    </div>
+                    </label>
+                  </div>
 
-                    <div className="flex-1 flex flex-col">
-                      <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                        Section Content
-                      </label>
-                      <textarea
-                        ref={textareaRef}
-                        value={selectedSection.content || ''}
-                        onChange={(e) => updateSection(selectedSectionId, 'content', e.target.value)}
-                        placeholder="Start writing your content..."
-                        style={{ fontSize: `${selectedSection.fontSize || 16}px` }}
-                        className={`flex-1 w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none ${darkMode
-                          ? 'bg-slate-800 border-slate-600 text-slate-100 placeholder-slate-500'
-                          : 'bg-white border-gray-300 text-slate-900 placeholder-gray-400'
-                          }`}
-                      />
-
-                      {selectedSection.images && selectedSection.images.length > 0 && (
-                        <div className="mt-6">
-                          <div className="flex items-center justify-between mb-3">
-                            <label className={`text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                              Images
-                            </label>
-                            <button
-                              onClick={() => updateSection(selectedSectionId, 'imagePosition',
-                                selectedSection.imagePosition === 'above' ? 'below' : 'above')}
-                              className={`text-xs px-3 py-1 rounded-lg ${darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                            >
-                              Change Position: {selectedSection.imagePosition === 'above' ? 'Above Text' : 'Below Text'}
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-6 flex-wrap mt-6">
-                            {selectedSection.images.map((img, idx) => {
-                              const moveLeft = swappingIndex === idx - 1;
-                              const moveRight = swappingIndex === idx;
-
-                              return (
-                                <React.Fragment key={idx}>
-                                  {/* IMAGE CARD */}
-                                  <div
-                                    className={`relative group
-            transition-transform
-            duration-[420ms]
-            ${moveLeft ? '-translate-x-[110px]' : ''}
-            ${moveRight ? 'translate-x-[110px]' : ''}
-          `}
-                                    style={{
-                                      transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                    }}
-                                  >
-                                    <div
-                                      className={`border rounded-md overflow-hidden w-[88px]
-            ${darkMode ? 'border-slate-600' : 'border-gray-300'}`}
-                                    >
-                                      <img
-                                        src={img.preview}
-                                        alt={img.label}
-                                        className="w-[88px] h-[88px] object-cover"
-                                      />
-                                      <div
-                                        className={`text-[10px] text-center py-0.5
-              ${darkMode ? 'bg-slate-700 text-slate-200' : 'bg-gray-100 text-gray-700'}`}
-                                      >
-                                        {img.label}
-                                      </div>
-                                    </div>
-
-                                    {/* DELETE (EDGE, HOVER ONLY) */}
-                                    <button
-                                      onClick={() => deleteImage(idx)}
-                                      className="absolute -top-2 -right-2 w-5 h-5 rounded-full
-                       bg-red-500 text-white text-[10px]
-                       flex items-center justify-center
-                       shadow-md hover:bg-red-600
-                       opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      ✕
-                                    </button>
-
-                                    {/* EDIT (CENTER, GLASS EFFECT) */}
-                                    <label
-                                      className="absolute inset-0 flex items-center justify-center
-                       opacity-0 group-hover:opacity-100 transition-opacity
-                       cursor-pointer"
-                                    >
-                                      <div
-                                        className={`w-8 h-8 rounded-full flex items-center justify-center
-                          backdrop-blur-sm shadow-lg
-                          ${darkMode
-                                            ? 'bg-slate-800/70 text-slate-200'
-                                            : 'bg-white/70 text-gray-700'}`}
-                                      >
-                                        ✎
-                                      </div>
-
-                                      <input
-                                        type="file"
-                                        accept="image/png,image/jpeg,image/jpg"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          const file = e.target.files[0];
-                                          if (!file) return;
-
-                                          const reader = new FileReader();
-                                          reader.onloadend = () => {
-                                            const updatedImages = [...selectedSection.images];
-                                            updatedImages[idx] = {
-                                              ...updatedImages[idx],
-                                              file,
-                                              preview: reader.result,
-                                            };
-                                            updateSection(selectedSectionId, 'images', updatedImages);
-                                          };
-                                          reader.readAsDataURL(file);
-                                        }}
-                                      />
-                                    </label>
-                                  </div>
-
-                                  {/* ⇄ SPRING SWAP BUTTON */}
-                                  {idx < selectedSection.images.length - 1 && (
-                                    <button
-                                      onClick={() => swapImagesWithSpring(idx)}
-                                      className={`w-10 h-10 rounded-full flex items-center justify-center
-                        shadow-md transition
-                        ${darkMode
-                                          ? 'bg-slate-700 text-slate-200 hover:bg-slate-600'
-                                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                                      title="Swap images"
-                                    >
-                                      ⇄
-                                    </button>
-                                  )}
-                                </React.Fragment>
-                              );
-                            })}
-                          </div>
-
-
-                        </div>
-                      )}
+                  {idx < selectedSection.images.length - 1 && (
+                    <button
+                      onClick={() => swapImagesWithSpring(idx)}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md transition ${
+                        darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                      title="Swap images"
+                    >
+                      ⇄
+                    </button>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
 
                       
-                    </div>
+                    
 
                     <div className={`border-t px-4 py-3 flex items-center justify-between text-xs ${darkMode ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-gray-200 bg-gray-50 text-gray-600'
                       }`}>
@@ -1391,7 +1654,7 @@ const handleImageUpload = (file) => {
                         <span>{autoSaveStatus}</span>
                       </div>
                     </div>
-                  </div>
+                  
                 </>
               ) : (
                 <div className={`flex-1 flex items-center justify-center ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
@@ -1412,12 +1675,12 @@ const handleImageUpload = (file) => {
                     } ${isResizing ? 'bg-indigo-500' : ''}`}
                   onMouseDown={handleMouseDown}
                 />
-                <div
+<div
                   className="flex-1 overflow-hidden"
                   style={{ width: `${100 - previewWidth}%` }}
                 >
-                  <Preview sections={sections} darkMode={darkMode} />
-                </div>
+                  <Preview sections={sections} darkMode={darkMode} documentName={activeDoc?.name} />
+                </div>             
               </>
             )}
           </div>
