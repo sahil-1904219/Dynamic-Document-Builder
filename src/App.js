@@ -38,6 +38,7 @@ const generateMarkdown = (sections) => {
   let markdown = '';
 
   const processSection = (section, level) => {
+    // Add heading
     if (section.name) {
       const heading = '#'.repeat(level);
       markdown += `${heading} ${section.name}\n\n`;
@@ -53,6 +54,7 @@ const generateMarkdown = (sections) => {
       });
     }
 
+    // Add content
     if (section.content) {
       markdown += `${section.content}\n\n`;
     }
@@ -64,6 +66,7 @@ const generateMarkdown = (sections) => {
       });
     }
 
+    // Process children/subsections recursively
     if (section.children && section.children.length > 0) {
       section.children.forEach(child => processSection(child, level + 1));
     }
@@ -76,11 +79,13 @@ const generateMarkdown = (sections) => {
 const generateMetadata = (sections) => {
   const hierarchy = buildHierarchy(sections);
 
-  // Build tree structure for metadata
-  const buildMetadataTree = (section) => {
+ const buildMetadataTree = (section) => {
     const tree = {
       id: section.id,
       name: section.name || 'Untitled',
+      content: section.content || '', // Include content in metadata
+      fontSize: section.fontSize || '16',
+      imagePosition: section.imagePosition || 'below',
       hasContent: !!(section.content && section.content.trim()),
       wordCount: countWords(section.content || ''),
       characterCount: countCharacters(section.content || ''),
@@ -755,31 +760,127 @@ const DynamicDocumentBuilder = () => {
     };
     reader.readAsText(file);
   };
+const handleJsonUpload = (file) => {
+    if (!file || !file.name.endsWith('.json')) {
+      showNotification('Please upload a .json metadata file');
+      return;
+    }
 
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const metadata = JSON.parse(e.target.result);
+        parseJsonToSections(metadata);
+      } catch (error) {
+        showNotification('Invalid JSON file format');
+        console.error('JSON parse error:', error);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const parseJsonToSections = (metadata) => {
+    if (!metadata.hierarchy || !Array.isArray(metadata.hierarchy)) {
+      showNotification('Invalid metadata structure');
+      return;
+    }
+
+    const newSections = [];
+    
+    // Recursive function to process hierarchy
+    const processHierarchyNode = (node, parentId = null) => {
+      // Create the current section
+      const section = {
+        id: generateId(),
+        name: node.name || '',
+        content: node.content || '',
+        parentId: parentId,
+        images: [],
+        expanded: true,
+        fontSize: node.fontSize || '16',
+        imagePosition: node.imagePosition || 'below'
+      };
+
+      // Process images if they exist
+      if (node.images && Array.isArray(node.images)) {
+        section.images = node.images.map(img => ({
+          file: {
+            name: img.filename || img.label,
+            type: img.type || 'image/png'
+          },
+          preview: img.base64Data,
+          label: img.label
+        }));
+      }
+
+      // Add this section to the flat list
+      newSections.push(section);
+
+      // Process subsections recursively, passing THIS section's ID as parent
+      if (node.subsections && Array.isArray(node.subsections)) {
+        node.subsections.forEach(child => {
+          processHierarchyNode(child, section.id);
+        });
+      }
+
+      return section.id;
+    };
+
+    // Process all top-level sections (they have no parent)
+    metadata.hierarchy.forEach(topLevelNode => {
+      processHierarchyNode(topLevelNode, null);
+    });
+
+    setSections(newSections);
+    if (newSections.length > 0) {
+      setSelectedSectionId(newSections[0].id);
+    }
+
+    const totalImages = newSections.reduce((sum, s) => sum + (s.images?.length || 0), 0);
+    const totalWords = newSections.reduce((sum, s) => sum + countWords(s.content || ''), 0);
+    showNotification(`Loaded ${newSections.length} sections, ${totalImages} images, ${totalWords} words from metadata!`);
+  };
   const parseMarkdownToSections = (markdown) => {
     const lines = markdown.split('\n');
     const newSections = [];
-    const sectionsByLevel = {}; // Track the most recent section at each level
+    const sectionStack = []; // Stack to track parent sections by level
     let currentSection = null;
+    let contentBuffer = ''; // Buffer to accumulate content lines
+
+    const finalizeSection = () => {
+      if (currentSection) {
+        currentSection.content = contentBuffer.trim();
+        contentBuffer = '';
+      }
+    };
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const headingMatch = line.match(/^(#+)\s+(.+)$/);
+      const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
       const imageMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
 
       if (headingMatch) {
-        // Save previous section's content
-        if (currentSection) {
-          currentSection.content = currentSection.content.trim();
-        }
+        // Finalize previous section
+        finalizeSection();
 
         const level = headingMatch[1].length;
         const name = headingMatch[2].trim();
 
-        // Find parent: it's the most recent section at level-1
+        // Find correct parent based on level
         let parentId = null;
-        if (level > 1 && sectionsByLevel[level - 1]) {
-          parentId = sectionsByLevel[level - 1];
+        if (level > 1) {
+          // Find the most recent section at level-1
+          for (let j = sectionStack.length - 1; j >= 0; j--) {
+            if (sectionStack[j].level === level - 1) {
+              parentId = sectionStack[j].id;
+              break;
+            }
+          }
+        }
+
+        // Remove sections from stack that are at same or deeper level
+        while (sectionStack.length > 0 && sectionStack[sectionStack.length - 1].level >= level) {
+          sectionStack.pop();
         }
 
         currentSection = {
@@ -794,23 +895,19 @@ const DynamicDocumentBuilder = () => {
         };
 
         newSections.push(currentSection);
-
-        // Update the tracking for this level
-        sectionsByLevel[level] = currentSection.id;
-
-        // Clear any deeper levels (they're no longer valid parents)
-        for (let clearLevel = level + 1; clearLevel <= 6; clearLevel++) {
-          delete sectionsByLevel[clearLevel];
-        }
+        sectionStack.push({ id: currentSection.id, level: level });
 
       } else if (imageMatch && currentSection) {
         // Image found
         const label = imageMatch[1] || `Fig ${String.fromCharCode(65 + currentSection.images.length)}`;
         const imageData = imageMatch[2];
 
-        // If this is the first image and we haven't seen content yet, it's "above"
-        if (currentSection.images.length === 0 && !currentSection.content.trim()) {
+        // If no content has been added yet, images go above
+        if (!contentBuffer.trim()) {
           currentSection.imagePosition = 'above';
+        } else {
+          // Content exists, so images go below
+          currentSection.imagePosition = 'below';
         }
 
         currentSection.images.push({
@@ -823,25 +920,19 @@ const DynamicDocumentBuilder = () => {
         });
 
       } else if (currentSection && line.trim()) {
-        // Content line - add to current section
-        if (currentSection.content) {
-          currentSection.content += '\n';
+        // Regular content line
+        if (contentBuffer) {
+          contentBuffer += '\n';
         }
-        currentSection.content += line;
+        contentBuffer += line;
+      } else if (currentSection && !line.trim() && contentBuffer) {
+        // Preserve empty lines within content
+        contentBuffer += '\n';
       }
     }
 
-    // Trim the last section's content
-    if (currentSection) {
-      currentSection.content = currentSection.content.trim();
-    }
-
-    // Validate the hierarchy
-    console.log('Parsed sections:', newSections.map(s => ({
-      id: s.id.substring(0, 10),
-      name: s.name,
-      parentId: s.parentId ? s.parentId.substring(0, 10) : null
-    })));
+    // Finalize last section
+    finalizeSection();
 
     setSections(newSections);
     if (newSections.length > 0) {
@@ -849,9 +940,10 @@ const DynamicDocumentBuilder = () => {
     }
 
     const totalImages = newSections.reduce((sum, s) => sum + (s.images?.length || 0), 0);
-    showNotification(`Loaded ${newSections.length} sections with ${totalImages} images!`);
+    const totalWords = newSections.reduce((sum, s) => sum + countWords(s.content || ''), 0);
+    showNotification(`Loaded ${newSections.length} sections, ${totalImages} images, ${totalWords} words!`);
   };
-  const updateSection = (id, field, value) => {
+    const updateSection = (id, field, value) => {
     setSections(sections.map(s => s.id === id ? { ...s, [field]: value } : s));
   };
 
@@ -952,40 +1044,14 @@ const DynamicDocumentBuilder = () => {
     updateSection(selectedSectionId, 'images', images);
     showNotification('Image removed');
   };
-  const insertFormatting = (prefix, suffix = '') => {
-    if (!textareaRef.current) return;
+  const updateImageLabel = (imageIndex, newLabel) => {
+  if (!selectedSection) return;
+  const images = [...selectedSection.images];
+  images[imageIndex].label = newLabel;
+  updateSection(selectedSectionId, 'images', images);
+  showNotification('Image label updated');
+};
 
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const content = selectedSection.content || '';
-    const selectedText = content.substring(start, end);
-
-    let newText;
-    let newCursorPos = start + prefix.length;
-
-    if (prefix === '[LINK]') {
-      const url = prompt('Enter URL:');
-      if (url) {
-        newText = content.substring(0, start) + `[${selectedText || 'Link Text'}](${url})` + content.substring(end);
-        newCursorPos = start + (selectedText ? selectedText.length : 9) + 3;
-      } else {
-        return;
-      }
-    } else {
-      newText = content.substring(0, start) + prefix + selectedText + suffix + content.substring(end);
-      newCursorPos = end + prefix.length + suffix.length;
-    }
-
-    updateSection(selectedSectionId, 'content', newText);
-
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-      }
-    }, 10);
-  };
 
   const undo = () => {
     if (historyIndex > 0) {
@@ -1397,7 +1463,10 @@ const DynamicDocumentBuilder = () => {
               </div>
             </div>
 
-            <div className="p-4 space-y-3">
+            
+
+
+               <div className="p-4 space-y-3">
               <button
                 onClick={() => addSection()}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg text-sm font-medium"
@@ -1405,24 +1474,33 @@ const DynamicDocumentBuilder = () => {
                 <Plus size={18} />
                 Add Section
               </button>
+{sections.length === 0 && (
+  <>
+              <label   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg text-sm font-medium"
+              >
+                <FileCode size={16} />
+                <span>Load Markdown</span>
+                <input
+                  type="file"
+                  accept=".md"
+                  onChange={(e) => handleMarkdownUpload(e.target.files[0])}
+                  className="hidden"
+                />
+              </label>
 
-              {sections.length === 0 && (
-                <>
-                  <label className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg text-sm font-medium cursor-pointer"
-                  >
-                    <Upload size={16} />
-                    <span>Load Markdown</span>
-                    <input
-                      type="file"
-                      accept=".md"
-                      onChange={(e) => handleMarkdownUpload(e.target.files[0])}
-                      className="hidden"
-                    />
-                  </label>
-
-
+              <label   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg text-sm font-medium"
+              >
+                <FileJson size={16} />
+                <span>Load Metadata JSON</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => handleJsonUpload(e.target.files[0])}
+                  className="hidden"
+                />
+              </label>
                 </>
-              )}
+)}
             </div>
 
             <div className="flex-1 overflow-y-auto px-2" style={{ minHeight: 0 }}>
@@ -1580,12 +1658,15 @@ const DynamicDocumentBuilder = () => {
                                         alt={img.label}
                                         className="w-[88px] h-[88px] object-cover"
                                       />
-                                      <div
-                                        className={`text-[10px] text-center py-0.5
-              ${darkMode ? 'bg-slate-700 text-slate-200' : 'bg-gray-100 text-gray-700'}`}
-                                      >
-                                        {img.label}
-                                      </div>
+                                      <input
+  type="text"
+  value={img.label}
+  onChange={(e) => updateImageLabel(idx, e.target.value)}
+  onClick={(e) => e.stopPropagation()}
+  className={`text-[10px] text-center py-0.5 w-full border-none focus:outline-none focus:ring-1 focus:ring-indigo-500
+    ${darkMode ? 'bg-slate-700 text-slate-200' : 'bg-gray-100 text-gray-700'}`}
+  placeholder="Image label"
+/>
                                     </div>
 
                                     {/* DELETE (EDGE, HOVER ONLY) */}
