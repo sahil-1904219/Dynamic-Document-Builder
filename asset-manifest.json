@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/dynamic-document-builder/static/css/main.196db53d.css",
+    "main.js": "/dynamic-document-builder/static/js/main.ec80963f.js",
+    "index.html": "/dynamic-document-builder/index.html",
+    "main.196db53d.css.map": "/dynamic-document-builder/static/css/main.196db53d.css.map",
+    "main.ec80963f.js.map": "/dynamic-document-builder/static/js/main.ec80963f.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.196db53d.css",
+    "static/js/main.ec80963f.js"
+  ]
+}
