@@ -1,246 +1,113 @@
-import React, { useState, useRef } from 'react';
-import { Plus, Trash2, Download, Upload, FileText, X, File, FileJson, FileCode, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
-
-// ==================== UTILITIES ====================
 export const generateId = () => `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-export const buildHierarchy = (sections) => {
-  const sectionMap = {};
-  const hierarchy = [];
-  
-  sections.forEach(section => {
-    sectionMap[section.id] = { ...section, children: [] };
-  });
-  
-  sections.forEach(section => {
-    if (section.parentId && sectionMap[section.parentId]) {
-      sectionMap[section.parentId].children.push(sectionMap[section.id]);
-    } else if (!section.parentId) {
-      hierarchy.push(sectionMap[section.id]);
-    }
-  });
-  
-  return hierarchy;
-};
 
-export const generateMarkdown = (hierarchy, level = 1) => {
+export const generateMarkdown = (sections) => {
+  const hierarchy = buildHierarchy(sections);
   let markdown = '';
-  
-  const processSection = (section, currentLevel) => {
-    const heading = '#'.repeat(currentLevel);
-    markdown += `${heading} ${section.name || 'Untitled Section'}\n\n`;
-    
-    if (section.details && section.details.trim()) {
-      markdown += `${section.details}\n\n`;
-    }
-    
-    if (section.images && section.images.length > 0) {
-      section.images.forEach((img, idx) => {
-        markdown += `![Image ${idx + 1}](${img.file.name})\n\n`;
+
+  const processSection = (section, level) => {
+    // Add heading   
+    const heading = '#'.repeat(level);
+    markdown += `${heading} ${section.name}\n\n`;
+
+    // Handle image position
+    const imagePosition = section.imagePosition || 'below';
+
+    // Images ABOVE content
+    if (imagePosition === 'above' && section.images && section.images.length > 0) {
+      section.images.forEach((img) => {
+        markdown += `![${img.label}](${img.preview})\n\n`;
       });
     }
-    
-    if (section.children && section.children.length > 0) {
-      section.children.forEach(child => processSection(child, currentLevel + 1));
+
+    // Add content
+    if (section.content) {
+      markdown += `${section.content}\n\n`;
     }
-  };
-  
-  hierarchy.forEach(section => processSection(section, level));
-  return markdown;
-};
 
-export const generateMetadata = (hierarchy) => {
-  const countSections = (nodes) => {
-    let count = nodes.length;
-    nodes.forEach(node => {
-      if (node.children) count += countSections(node.children);
-    });
-    return count;
-  };
-
-  const buildTree = (nodes) => {
-    return nodes.map(node => ({
-      id: node.id,
-      name: node.name,
-      details: node.details || '',
-      imageCount: node.images ? node.images.length : 0,
-      children: node.children ? buildTree(node.children) : []
-    }));
-  };
-
-  return {
-    totalSections: countSections(hierarchy),
-    generatedAt: new Date().toISOString(),
-    hierarchy: buildTree(hierarchy)
-  };
-};
-
-export const generatePDF = (hierarchy) => {
-  let html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Document</title>
-      <style>
-        @page { margin: 2cm; }
-        body { 
-          font-family: 'Times New Roman', Times, serif; 
-          max-width: 210mm; 
-          margin: 0 auto; 
-          padding: 20px; 
-          line-height: 1.6; 
-          color: #000;
-          background: white;
-        }
-        h1 { 
-          font-size: 24pt; 
-          margin-top: 40px; 
-          margin-bottom: 20px; 
-          text-align: center;
-          font-weight: bold;
-          page-break-after: avoid;
-        }
-        h2 { 
-          font-size: 20pt; 
-          margin-top: 30px; 
-          margin-bottom: 16px; 
-          font-weight: bold;
-          page-break-after: avoid;
-        }
-        h3 { 
-          font-size: 16pt; 
-          margin-top: 25px; 
-          margin-bottom: 14px; 
-          font-weight: bold;
-          page-break-after: avoid;
-        }
-        h4 { 
-          font-size: 14pt; 
-          margin-top: 20px; 
-          margin-bottom: 12px; 
-          font-weight: bold;
-          page-break-after: avoid;
-        }
-        .details {
-          text-align: justify;
-          margin: 20px 0;
-          white-space: pre-wrap;
-          line-height: 1.8;
-          page-break-inside: avoid;
-        }
-        .images {
-          margin: 30px 0;
-          page-break-inside: avoid;
-        }
-        .image-item {
-          margin: 20px 0;
-          text-align: center;
-        }
-        .image-item img { 
-          max-width: 500px;
-          width: 100%;
-          height: auto; 
-          border: 1px solid #000;
-        }
-        .image-caption {
-          margin-top: 8px;
-          font-style: italic;
-          font-size: 11pt;
-        }
-        .section { 
-          margin-bottom: 40px; 
-          page-break-inside: avoid;
-        }
-      </style>
-    </head>
-    <body>
-  `;
-  
-  const renderSection = (section, level = 1) => {
-    const tag = `h${Math.min(level, 6)}`;
-    
-    html += `<div class="section">`;
-    html += `<${tag}>${section.name || 'Untitled Section'}</${tag}>`;
-    
-    if (section.details && section.details.trim()) {
-      html += `<div class="details">${section.details}</div>`;
-    }
-    
-    if (section.images && section.images.length > 0) {
-      html += `<div class="images">`;
-      section.images.forEach((img, idx) => {
-        const label = String.fromCharCode(65 + idx);
-        html += `<div class="image-item">`;
-        html += `<img src="${img.preview}" alt="${section.name} - Image ${label}" />`;
-        html += `<div class="image-caption">Figure ${label}: ${section.name}</div>`;
-        html += `</div>`;
+    // Images BELOW content (default)
+    if (imagePosition === 'below' && section.images && section.images.length > 0) {
+      section.images.forEach((img) => {
+        markdown += `![${img.label}](${img.preview})\n\n`;
       });
-      html += `</div>`;
     }
-    
+
+    // Process children/subsections recursively
     if (section.children && section.children.length > 0) {
-      section.children.forEach(child => renderSection(child, level + 1));
+      section.children.forEach(child => processSection(child, level + 1));
     }
-    
-    html += `</div>`;
   };
-  
-  hierarchy.forEach(section => renderSection(section, 1));
-  html += `</body></html>`;
-  
-  return html;
+
+  hierarchy.forEach(section => processSection(section, 1));
+  return markdown.trim();
 };
 
-export const parseMarkdown = (content) => {
-  const lines = content.split('\n');
-  const parsedSections = [];
-  const sectionStack = [];
-  let currentSection = null;
-  let detailsBuffer = [];
+export const generateMetadata = (sections) => {
+  const hierarchy = buildHierarchy(sections);
 
-  lines.forEach((line) => {
-    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-    
-    if (headingMatch) {
-      if (currentSection && detailsBuffer.length > 0) {
-        currentSection.details = detailsBuffer.join('\n').trim();
-        detailsBuffer = [];
-      }
-      
-      const level = headingMatch[1].length;
-      const name = headingMatch[2];
-      
-      const section = {
-        id: generateId(),
-        name,
-        parentId: null,
-        images: [],
-        details: '',
-        expanded: true
-      };
+  const buildMetadataTree = (section) => {
+    const tree = {
+      id: section.id,
+      name: section.name,
+      content: section.content || '', // Include content in metadata
+      fontSize: section.fontSize || '16',
+      imagePosition: section.imagePosition || 'below',
+      hasContent: !!(section.content && section.content.trim()),
+      wordCount: countWords(section.content || ''),
+      characterCount: countCharacters(section.content || ''),
+      imageCount: section.images ? section.images.length : 0,
+      images: section.images ? section.images.map(img => ({
+        label: img.label,
+        filename: `${img.label.replace(/\s+/g, '_')}.png`,
+        type: img.file.type,
+        base64Data: img.preview // Full base64 data URI for preservation
+      })) : []
+    };
 
-      while (sectionStack.length >= level) {
-        sectionStack.pop();
-      }
-
-      if (sectionStack.length > 0) {
-        section.parentId = sectionStack[sectionStack.length - 1].id;
-      }
-
-      sectionStack.push(section);
-      parsedSections.push(section);
-      currentSection = section;
-    } else if (currentSection && line.trim() && !line.match(/^!\[.*\]\(.*\)$/)) {
-      detailsBuffer.push(line);
+    if (section.children && section.children.length > 0) {
+      tree.subsections = section.children.map(child => buildMetadataTree(child));
     }
-  });
 
-  if (currentSection && detailsBuffer.length > 0) {
-    currentSection.details = detailsBuffer.join('\n').trim();
-  }
+    return tree;
+  };
 
-  return parsedSections;
+  // Calculate statistics
+  const totalImages = sections.reduce((sum, s) => sum + (s.images?.length || 0), 0);
+  const totalWords = sections.reduce((sum, s) => sum + countWords(s.content || ''), 0);
+  const totalCharacters = sections.reduce((sum, s) => sum + countCharacters(s.content || ''), 0);
+
+  const metadata = {
+    documentInfo: {
+      version: "1.0",
+      generatedAt: new Date().toISOString(),
+      totalSections: sections.length,
+      topLevelSections: hierarchy.length,
+      totalImages: totalImages,
+      totalWords: totalWords,
+      totalCharacters: totalCharacters
+    },
+    hierarchy: hierarchy.map(section => buildMetadataTree(section)),
+    imageReferences: sections.flatMap(s =>
+      s.images ? s.images.map(img => ({
+        sectionId: s.id,
+        sectionName: s.name,
+        label: img.label,
+        filename: `${img.label.replace(/\s+/g, '_')}.png`,
+        type: img.file.type,
+        base64Data: img.preview
+      })) : []
+    ),
+    sectionsList: sections.map(s => ({
+      id: s.id,
+      name: s.name || 'Untitled',
+      parentId: s.parentId || null,
+      depth: s.parentId ? (sections.find(p => p.id === s.parentId)?.parentId ? 2 : 1) : 0,
+      hasContent: !!(s.content && s.content.trim()),
+      imageCount: s.images ? s.images.length : 0
+    }))
+  };
+
+  return metadata;
 };
 
 export const downloadFile = (content, filename, type = 'text/plain') => {
@@ -255,7 +122,52 @@ export const downloadFile = (content, filename, type = 'text/plain') => {
   URL.revokeObjectURL(url);
 };
 
-// ==================== COMPONENTS ====================
+export const validateSectionsForExport = () => {
+  const invalidSections = sections.filter(s => !isSectionValid(s));
+
+  if (invalidSections.length > 0) {
+    const displayNames = invalidSections.map((s, idx) => {
+      // NEW: More specific error message
+      if (s.content || (s.images && s.images.length > 0)) {
+        return `Section ${idx + 1}: Has content/images but missing heading`;
+      }
+      return `Section ${idx + 1}: Empty section (heading required)`;
+    });
+
+    return {
+      valid: false,
+      message: `Please add headings to these sections before exporting:\n• ${displayNames.join('\n• ')}`
+    };
+  }
+
+  return { valid: true };
+};
 
 
+export const countWords = (text) => {
+  return text.trim() ? text.trim().split(/\s+/).length : 0;
+};
 
+export const countCharacters = (text) => {
+  return text.length;
+};
+
+
+export const buildHierarchy = (sections) => {
+  const sectionMap = {};
+  const hierarchy = [];
+
+  sections.forEach(section => {
+    sectionMap[section.id] = { ...section, children: [] };
+  });
+
+  sections.forEach(section => {
+    if (section.parentId && sectionMap[section.parentId]) {
+      sectionMap[section.parentId].children.push(sectionMap[section.id]);
+    } else if (!section.parentId) {
+      hierarchy.push(sectionMap[section.id]);
+    }
+  });
+
+  return hierarchy;
+};
