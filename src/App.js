@@ -38,11 +38,9 @@ const generateMarkdown = (sections) => {
   let markdown = '';
 
   const processSection = (section, level) => {
-    // Add heading
-    if (section.name) {
-      const heading = '#'.repeat(level);
-      markdown += `${heading} ${section.name}\n\n`;
-    }
+    // Add heading   
+    const heading = '#'.repeat(level);
+    markdown += `${heading} ${section.name}\n\n`;
 
     // Handle image position
     const imagePosition = section.imagePosition || 'below';
@@ -79,10 +77,10 @@ const generateMarkdown = (sections) => {
 const generateMetadata = (sections) => {
   const hierarchy = buildHierarchy(sections);
 
- const buildMetadataTree = (section) => {
+  const buildMetadataTree = (section) => {
     const tree = {
       id: section.id,
-      name: section.name || 'Untitled',
+      name: section.name,
       content: section.content || '', // Include content in metadata
       fontSize: section.fontSize || '16',
       imagePosition: section.imagePosition || 'below',
@@ -124,7 +122,7 @@ const generateMetadata = (sections) => {
     imageReferences: sections.flatMap(s =>
       s.images ? s.images.map(img => ({
         sectionId: s.id,
-        sectionName: s.name || 'Untitled',
+        sectionName: s.name,
         label: img.label,
         filename: `${img.label.replace(/\s+/g, '_')}.png`,
         type: img.file.type,
@@ -341,7 +339,7 @@ const ValidationModal = ({ errors, onClose, darkMode }) => {
               ))}
             </ul>
             <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Each section must have at least a heading or content. Images alone are not sufficient.
+              Each section must have a heading. Content and images are optional.
             </p>
           </div>
         </div>
@@ -363,9 +361,12 @@ const SidebarSection = ({ section, sections, level, onSelect, selectedId, onDele
   const childSections = sections.filter(s => s.parentId === section.id);
 
   // Auto-generate name from content
-  const displayName = section.name ||
-    (section.content ? section.content.substring(0, 30).trim() || 'Untitled' : 'Untitled');
-
+  // const displayName = section.name ||
+  //   (section.content ? section.content.substring(0, 30).trim() || 'Untitled' : 'Untitled');
+  // NEW VERSION - Only show actual heading, never content
+  const displayName = section.name && section.name.trim()
+    ? section.name
+    : 'Untitled';
   const matchesSearch = !searchTerm ||
     displayName.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -378,7 +379,7 @@ const SidebarSection = ({ section, sections, level, onSelect, selectedId, onDele
   const hasName = section.name && section.name.trim().length > 0;
   const hasContent = section.content && section.content.trim().length > 0;
   const hasImages = section.images && section.images.length > 0;
-  const isInvalid = !hasName && !hasContent && hasImages;
+  const isInvalid = !hasName;
 
   return (
     <div className="relative">
@@ -414,7 +415,7 @@ const SidebarSection = ({ section, sections, level, onSelect, selectedId, onDele
         <div className="flex-1 min-w-0">
           <div className={`text-sm font-medium truncate ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
             {displayName}
-            {isInvalid && <span className="ml-2 text-red-500 text-xs">⚠️ Needs heading or content</span>}
+            {isInvalid && <span className="ml-2 text-red-500 text-xs">⚠️ Heading required</span>}
           </div>
         </div>
         <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
@@ -714,38 +715,38 @@ const DynamicDocumentBuilder = () => {
     showNotification('Section added!');
   };
 
-  // Validation function to check if a section is valid
+
+  // NEW VERSION - Heading is REQUIRED
   const isSectionValid = (section) => {
     const hasName = section.name && section.name.trim().length > 0;
     const hasContent = section.content && section.content.trim().length > 0;
     const hasImages = section.images && section.images.length > 0;
-
-    // Section must have at least name OR content
-    // Images alone are not sufficient
-    return hasName || hasContent;
+    // Section MUST have a heading/name
+    // Content and images are optional
+    return hasName;
   };
 
-  // Validate all sections before export
+  // Around line 521
   const validateSectionsForExport = () => {
     const invalidSections = sections.filter(s => !isSectionValid(s));
 
     if (invalidSections.length > 0) {
-      const displayNames = invalidSections.map(s => {
-        if (s.images && s.images.length > 0) {
-          return `Section with ${s.images.length} image(s) only`;
+      const displayNames = invalidSections.map((s, idx) => {
+        // NEW: More specific error message
+        if (s.content || (s.images && s.images.length > 0)) {
+          return `Section ${idx + 1}: Has content/images but missing heading`;
         }
-        return 'Empty section';
+        return `Section ${idx + 1}: Empty section (heading required)`;
       });
 
       return {
         valid: false,
-        message: `Please fix these sections before exporting:\n• ${displayNames.join('\n• ')}`
+        message: `Please add headings to these sections before exporting:\n• ${displayNames.join('\n• ')}`
       };
     }
 
     return { valid: true };
   };
-  // ADD THIS ENTIRE BLOCK AFTER addSection function
 
   const handleMarkdownUpload = (file) => {
     if (!file || !file.name.endsWith('.md')) {
@@ -757,10 +758,14 @@ const DynamicDocumentBuilder = () => {
     reader.onload = (e) => {
       const content = e.target.result;
       parseMarkdownToSections(content);
+
+      // Update document name to match filename (without extension)
+      const fileName = file.name.replace('.md', '');
+      renameDocument(activeDocId, fileName);
     };
     reader.readAsText(file);
   };
-const handleJsonUpload = (file) => {
+  const handleJsonUpload = (file) => {
     if (!file || !file.name.endsWith('.json')) {
       showNotification('Please upload a .json metadata file');
       return;
@@ -771,6 +776,10 @@ const handleJsonUpload = (file) => {
       try {
         const metadata = JSON.parse(e.target.result);
         parseJsonToSections(metadata);
+
+        // Update document name to match filename (without extension)
+        const fileName = file.name.replace('_metadata.json', '').replace('.json', '');
+        renameDocument(activeDocId, fileName);
       } catch (error) {
         showNotification('Invalid JSON file format');
         console.error('JSON parse error:', error);
@@ -786,7 +795,7 @@ const handleJsonUpload = (file) => {
     }
 
     const newSections = [];
-    
+
     // Recursive function to process hierarchy
     const processHierarchyNode = (node, parentId = null) => {
       // Create the current section
@@ -943,7 +952,7 @@ const handleJsonUpload = (file) => {
     const totalWords = newSections.reduce((sum, s) => sum + countWords(s.content || ''), 0);
     showNotification(`Loaded ${newSections.length} sections, ${totalImages} images, ${totalWords} words!`);
   };
-    const updateSection = (id, field, value) => {
+  const updateSection = (id, field, value) => {
     setSections(sections.map(s => s.id === id ? { ...s, [field]: value } : s));
   };
 
@@ -958,14 +967,21 @@ const handleJsonUpload = (file) => {
   const confirmDelete = () => {
     if (!sectionToDelete) return;
 
-    const deleteRecursive = (sectionId) => {
+    // Collect all IDs to delete (section + all descendants)
+    const idsToDelete = new Set();
+
+    const collectIds = (sectionId) => {
+      idsToDelete.add(sectionId);
       const children = sections.filter(s => s.parentId === sectionId);
-      children.forEach(child => deleteRecursive(child.id));
-      setSections(prev => prev.filter(s => s.id !== sectionId));
+      children.forEach(child => collectIds(child.id));
     };
 
-    deleteRecursive(sectionToDelete);
-    if (selectedSectionId === sectionToDelete) {
+    collectIds(sectionToDelete);
+
+    // Delete all collected sections in one operation
+    setSections(prev => prev.filter(s => !idsToDelete.has(s.id)));
+
+    if (selectedSectionId === sectionToDelete || idsToDelete.has(selectedSectionId)) {
       setSelectedSectionId(null);
     }
 
@@ -1004,7 +1020,7 @@ const handleJsonUpload = (file) => {
 
         // Show warning if section has only images
         if (!selectedSection.name?.trim() && !selectedSection.content?.trim()) {
-          showNotification('⚠️ Add a heading or content - images alone are not enough');
+          showNotification('⚠️ Warning: Add a heading - it\'s required for export');
         } else {
           showNotification('Image added');
         }
@@ -1045,12 +1061,12 @@ const handleJsonUpload = (file) => {
     showNotification('Image removed');
   };
   const updateImageLabel = (imageIndex, newLabel) => {
-  if (!selectedSection) return;
-  const images = [...selectedSection.images];
-  images[imageIndex].label = newLabel;
-  updateSection(selectedSectionId, 'images', images);
-  showNotification('Image label updated');
-};
+    if (!selectedSection) return;
+    const images = [...selectedSection.images];
+    images[imageIndex].label = newLabel;
+    updateSection(selectedSectionId, 'images', images);
+    showNotification('Image label updated');
+  };
 
 
   const undo = () => {
@@ -1341,39 +1357,45 @@ const handleJsonUpload = (file) => {
 
             </div>
 
-<button
-  onClick={() => sections.length >= 1 && setPreviewMode(previewMode === 'split' ? 'none' : 'split')}
-  disabled={sections.length < 1}
-  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all transform hover:scale-105 ${sections.length < 1
-    ? darkMode ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg'
-  }`}
->
-  <Eye size={16} /> Live Preview
-  {previewMode === 'split' && <span className="text-xs bg-white bg-opacity-20 px-2 py-0.5 rounded animate-pulse">Real-time</span>}
-</button>
-
-
-<button
-  onClick={() => sections.length >= 1 && setPreviewMode(previewMode === 'full' ? 'none' : 'full')}
-  disabled={sections.length < 1}
-  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all transform hover:scale-105 ${sections.length < 1
-    ? darkMode ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg'
-  }`}
->
-  {previewMode === 'full' ? <X size={16} /> : <Maximize2 size={16} />} {previewMode === 'full' ? 'Close Preview' : 'Full Preview'}
-</button>
+            <button
+              onClick={() => sections.length >= 1 && setPreviewMode(previewMode === 'split' ? 'none' : 'split')}
+              disabled={sections.length < 1}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all transform hover:scale-105 ${sections.length < 1
+                ? darkMode ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : previewMode === 'split'
+                  ? 'bg-green-600 text-white hover:bg-green-700 shadow-lg'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg'
+                }`}
+            >
+              <Eye size={16} /> Live Preview
+              {previewMode === 'split' && <span className="text-xs bg-white bg-opacity-20 px-2 py-0.5 rounded animate-pulse">Real-time</span>}
+            </button>
 
 
 
-<button
-  onClick={() => sections.length >= 1 && setShowDownloadModal(true)}
-  disabled={sections.length < 1}
-  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all transform hover:scale-105 ${sections.length < 1 ? (darkMode ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed') : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md'}`}
->
-  Export
-</button>
+            <button
+              onClick={() => sections.length >= 1 && setPreviewMode(previewMode === 'full' ? 'none' : 'full')}
+              disabled={sections.length < 1}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all transform hover:scale-105 ${sections.length < 1
+                ? darkMode ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : previewMode === 'full'
+                  ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg'
+                }`}
+            >
+              {previewMode === 'full' ? <X size={16} /> : <Maximize2 size={16} />} {previewMode === 'full' ? 'Close Preview' : 'Full Preview'}
+            </button>
+
+
+
+
+            <button
+              onClick={() => sections.length >= 1 && setShowDownloadModal(true)}
+              disabled={sections.length < 1}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all transform hover:scale-105 ${sections.length < 1 ? (darkMode ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed') : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md'}`}
+            >
+              Export
+            </button>
 
 
 
@@ -1463,10 +1485,10 @@ const handleJsonUpload = (file) => {
               </div>
             </div>
 
-            
 
 
-               <div className="p-4 space-y-3">
+
+            <div className="p-4 space-y-3">
               <button
                 onClick={() => addSection()}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg text-sm font-medium"
@@ -1474,33 +1496,33 @@ const handleJsonUpload = (file) => {
                 <Plus size={18} />
                 Add Section
               </button>
-{sections.length === 0 && (
-  <>
-              <label   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg text-sm font-medium"
-              >
-                <FileCode size={16} />
-                <span>Load Markdown</span>
-                <input
-                  type="file"
-                  accept=".md"
-                  onChange={(e) => handleMarkdownUpload(e.target.files[0])}
-                  className="hidden"
-                />
-              </label>
+              {sections.length === 0 && (
+                <>
+                  <label className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg text-sm font-medium"
+                  >
+                    <FileCode size={16} />
+                    <span>Load Markdown</span>
+                    <input
+                      type="file"
+                      accept=".md"
+                      onChange={(e) => handleMarkdownUpload(e.target.files[0])}
+                      className="hidden"
+                    />
+                  </label>
 
-              <label   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg text-sm font-medium"
-              >
-                <FileJson size={16} />
-                <span>Load Metadata JSON</span>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={(e) => handleJsonUpload(e.target.files[0])}
-                  className="hidden"
-                />
-              </label>
+                  <label className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg text-sm font-medium"
+                  >
+                    <FileJson size={16} />
+                    <span>Load Metadata JSON</span>
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={(e) => handleJsonUpload(e.target.files[0])}
+                      className="hidden"
+                    />
+                  </label>
                 </>
-)}
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto px-2" style={{ minHeight: 0 }}>
@@ -1659,14 +1681,14 @@ const handleJsonUpload = (file) => {
                                         className="w-[88px] h-[88px] object-cover"
                                       />
                                       <input
-  type="text"
-  value={img.label}
-  onChange={(e) => updateImageLabel(idx, e.target.value)}
-  onClick={(e) => e.stopPropagation()}
-  className={`text-[10px] text-center py-0.5 w-full border-none focus:outline-none focus:ring-1 focus:ring-indigo-500
+                                        type="text"
+                                        value={img.label}
+                                        onChange={(e) => updateImageLabel(idx, e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`text-[10px] text-center py-0.5 w-full border-none focus:outline-none focus:ring-1 focus:ring-indigo-500
     ${darkMode ? 'bg-slate-700 text-slate-200' : 'bg-gray-100 text-gray-700'}`}
-  placeholder="Image label"
-/>
+                                        placeholder="Image label"
+                                      />
                                     </div>
 
                                     {/* DELETE (EDGE, HOVER ONLY) */}

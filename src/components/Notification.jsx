@@ -14,7 +14,7 @@ export const Notification = ({ message, onClose, darkMode }) => {
   return (
     <div
       className={`
-        fixed right-6 top-12
+        fixed right-6 top-[3.20rem]
         flex items-center gap-3
         px-5 py-3
         rounded-md border
