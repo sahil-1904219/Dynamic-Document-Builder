@@ -75,7 +75,7 @@ export const Sidebar = ({ onMarkdownUpload, onJsonUpload }) => {
 
             <label className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg text-sm font-medium cursor-pointer">
               <FileJson size={16} />
-              <span>Upload JSON</span>
+              <span>Upload Metadata JSON</span>
               <input
                 type="file"
                 accept=".json"

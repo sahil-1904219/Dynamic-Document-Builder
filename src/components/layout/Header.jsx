@@ -18,15 +18,21 @@ export const Header = ({
     <div className={`${darkMode ? 'bg-slate-800 border-b border-slate-700' : 'bg-white border-b border-gray-200'} flex-shrink-0`}>
       <div className="px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <FileText
-            size={24}
-            className={darkMode ? 'text-indigo-100' : 'text-indigo-600'}
-          />
-          <span
-            className={`text-lg font-bold ${darkMode ? 'text-indigo-100' : 'text-indigo-600'}`}
-          >
-            Dynamic Document Builder
-          </span>
+       <div className="flex items-center gap-4">
+  <div className="relative">
+    <FileText
+      size={24}
+      className={`${darkMode ? 'text-indigo-100' : 'text-indigo-600'} animate-pulse`}
+    />
+    <FileText
+      size={24}
+      className={`${darkMode ? 'text-indigo-100' : 'text-indigo-600'} absolute top-0 left-0 opacity-30 animate-ping`}
+    />
+  </div>
+  <span className={`text-lg font-bold ${darkMode ? 'text-indigo-100' : 'text-indigo-600'}`}>
+    Dynamic Document Builder
+  </span>
+</div>
           <button
             onClick={onToggleDarkMode}
             className={`p-2 rounded-lg transition-all transform hover:scale-110 hover:rotate-12 ${
