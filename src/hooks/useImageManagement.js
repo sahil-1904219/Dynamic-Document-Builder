@@ -12,13 +12,22 @@ export const useImageManagement = () => {
   
   const { updateSection } = useSections();
 
+const MAX_IMAGES = 9;
+
   const handleImageUpload = (file) => {
     if (!selectedSection || !file) return;
+
+    const currentImages = selectedSection.images || [];
+    
+    // Check image limit
+    if (currentImages.length >= MAX_IMAGES) {
+      showNotification(`Maximum ${MAX_IMAGES} images allowed per section`);
+      return;
+    }
 
     if (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'image/jpg') {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const currentImages = selectedSection.images || [];
         const figureLabel = String.fromCharCode(65 + currentImages.length);
         const newImage = {
           file,
@@ -39,6 +48,7 @@ export const useImageManagement = () => {
       showNotification('Please upload PNG or JPG');
     }
   };
+
 
   const moveImage = (imageIndex, direction) => {
     if (!selectedSection) return;

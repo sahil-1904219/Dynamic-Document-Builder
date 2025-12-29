@@ -34,11 +34,10 @@ export const SectionEditor = () => {
           value={selectedSection.name || ''}
           onChange={(e) => updateSection(selectedSectionId, 'name', e.target.value)}
           placeholder="Enter section heading (e.g., Introduction, Chapter 1)"
-          className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg font-semibold transition-all ${
-            darkMode
+          className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg font-semibold transition-all ${darkMode
               ? 'bg-slate-800 border-slate-600 text-slate-100 placeholder-slate-500'
               : 'bg-white border-gray-300 text-slate-900 placeholder-gray-400'
-          }`}
+            }`}
         />
       </div>
 
@@ -47,7 +46,10 @@ export const SectionEditor = () => {
           <label className={`text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
             Section Content
           </label>
-          <label className="flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-all active:scale-95">
+          <label className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${selectedSection?.images?.length >= 9
+              ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer active:scale-95'
+            }`}>
             <Upload size={14} />
             <span>Add Image</span>
             <input
@@ -55,6 +57,7 @@ export const SectionEditor = () => {
               accept="image/png,image/jpeg,image/jpg"
               onChange={(e) => handleImageUpload(e.target.files[0])}
               className="hidden"
+              disabled={selectedSection?.images?.length >= 9}
             />
           </label>
         </div>
@@ -65,11 +68,10 @@ export const SectionEditor = () => {
           onChange={(e) => updateSection(selectedSectionId, 'content', e.target.value)}
           placeholder="Start writing your content..."
           style={{ fontSize: `${selectedSection.fontSize || 16}px`, minHeight: '230px' }}
-          className={`flex-1 w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none transition-all ${
-            darkMode
+          className={`flex-1 w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none transition-all ${darkMode
               ? 'bg-slate-800 border-slate-600 text-slate-100 placeholder-slate-500'
               : 'bg-white border-gray-300 text-slate-900 placeholder-gray-400'
-          }`}
+            }`}
         />
 
         <ImageGallery />

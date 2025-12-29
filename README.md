@@ -1,70 +1,168 @@
-# Getting Started with Create React App
+# Dynamic Document Builder
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Live demo: [https://sahil-1904219.github.io/Dynamic-Document-Builder/](https://sahil-1904219.github.io/Dynamic-Document-Builder/)
 
-## Available Scripts
+A small, focused React app that lets users create structured documents with dynamic sections, subsections, images, and export to Markdown + metadata JSON. Designed to be simple, responsive, and easy to extend.
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## Quick links
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+* Live site: [https://sahil-1904219.github.io/Dynamic-Document-Builder/](https://sahil-1904219.github.io/Dynamic-Document-Builder/)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## Getting started (run locally)
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. Clone the repo
 
-### `npm run build`
+```bash
+git clone <your-repo-url>
+cd Dynamic-Document-Builder
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+2. Install dependencies
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+npm install
+# or
+yarn
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+3. Start the dev server
 
-### `npm run eject`
+```bash
+npm start
+# or
+yarn start
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## What this project contains (overview)
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+This app implements a dynamic section editor where:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+* Users can add/remove sections and subsections (via a parentId-based hierarchy).
+* Upload PNG/JPG images per section (images are stored as base64 previews in the UI and included in exports).
+* Real-time preview (split view) and full preview modes.
+* Export as `output.md` (markdown with embedded images) and `metadata.json` (tree + stats + image references).
+* Load a previously exported Markdown (.md) or metadata JSON (.json) to repopulate the editor.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+---
 
-## Learn More
+## Design choices
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+* **Framework**: React (v18.3.1) — chosen for component-based UI and easy state composition.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+* **Styling**: Tailwind CSS (v3.4.1) with PostCSS (v8.4.35) and Autoprefixer (v10.4.17).
 
-### Code Splitting
+* **Editors**: TipTap (v3.14.0) for rich text handling and `react-quill` (v2.0.0) where lightweight editing is sufficient.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+* **Routing**: `react-router-dom` (v7.11.0) for client-side routing.
 
-### Analyzing the Bundle Size
+* **Icons**: `lucide-react` (v0.263.1) for clean, accessible icons.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+* **Build tooling**: `react-scripts` (v5.0.1) via Create React App.
 
-### Making a Progressive Web App
+* **Deployment**: GitHub Pages using `gh-pages` (v6.3.0).
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+* **Hierarchy management**: Keep sections in a *flat array* where each section has a `parentId` (or `null` for top-level). A `buildHierarchy(sections)` utility converts the flat array into a nested tree when needed (preview, export, metadata generation).
 
-### Advanced Configuration
+* **Markdown & metadata generation**:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+  * `generateMarkdown(sections)` builds a heading hierarchy (`#`, `##`, `###`, ...) by walking the nested tree and embeds images as data URIs so the markdown is self-contained.
+  * `generateMetadata(sections)` returns JSON with document statistics (total words, characters, images), the hierarchical tree, and image references (filename, MIME type, base64).
 
-### Deployment
+* **Image handling**: Images are read client-side via the FileReader API and stored as base64 `data:` URIs inside the section objects. This simplifies export (images embedded in markdown and metadata) and allows the app to be purely client-side.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+* **Validation**: Headings are required for export. Content and images are optional but the app warns the user if a section contains content/images but no heading.
 
-### `npm run build` fails to minify
+* **UX decisions**: split preview, undo/redo (history snapshotting), and inline document tabs for multiple documents.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+---
+
+## Hierarchy approach (flat → tree)
+
+The document hierarchy is managed using a **flat data structure with parent references**, which is later transformed into a nested tree only when required.
+
+**Flat structure (single source of truth):**
+
+```
+[
+  { id: 1, title: "Introduction", parentId: null },
+  { id: 2, title: "Overview",     parentId: 1 },
+  { id: 3, title: "Details",      parentId: 1 },
+  { id: 4, title: "Conclusion",   parentId: null }
+]
+```
+
+**Converted hierarchical structure (used for preview & export):**
+
+```
+Introduction
+├── Overview
+└── Details
+
+Conclusion
+```
+
+**Conversion logic:**
+
+1. All sections are stored in a flat array with `id` and `parentId`
+2. A lookup map (`id → section`) is created
+3. Each section is attached to its parent’s `children` array
+4. Sections with `parentId = null` become root nodes
+5. The resulting tree is traversed recursively to:
+
+   * Assign correct heading levels (`#`, `##`, `###`, …)
+   * Maintain parent–child ordering
+   * Generate Markdown and metadata outputs
+
+## Assumptions
+
+* A section **must have a heading** to be considered valid; sections without headings are not allowed.
+* **Duplicate section names are allowed**, as each section is uniquely identified internally using an `id`.
+* A maximum of **5 levels of subsections** (sub-sections of sub-sections) can be added to maintain readability and usability.
+* Each section can contain a maximum of **9 images**.
+* Images are by default rendered **below the content area by default** to keep text flow consistent and predictable.
+
+
+---
+
+## Project structure (important files)
+
+```
+src/
+├── components/
+│   ├── DynamicDocumentBuilder.jsx
+│   ├── layout/
+│   │   ├── Header.jsx
+│   │   ├── Footer.jsx
+│   │   └── Sidebar.jsx
+│   ├── sections/
+│   │   └── SectionEditor.jsx
+│   ├── images/
+│   │   └── ImageGallery.jsx
+│   ├── documents/
+│   │   ├── DocumentTabs.jsx
+│   │   └── Preview.jsx
+│   ├── modals/
+│   │   ├── SidebarSection.jsx
+│   │   ├── DownloadModal.jsx
+│   │   ├── DeleteModal.jsx
+│   │   ├── ValidateModal.jsx
+│   │   └── Notification.jsx
+├── context/
+│   └── DocumentContext.jsx
+├── hooks/
+│   ├── useDocuments.js
+│   ├── useSections.js
+│   ├── useHistory.js
+│   ├── useImageManagement.js
+│   └── useResizable.js
+└── utils/
+    ├── documentUtils.js
+    └── markdownUtils.js
+```
+
+
+
