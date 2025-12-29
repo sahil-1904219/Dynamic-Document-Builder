@@ -2,7 +2,7 @@
   "name": "dynamic-document-builder",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://sahil-1904219.github.io/dynamic-document-builder",
+  "homepage": "https://sahil-1904219.github.io/Dynamic-Document-Builder",
   "dependencies": {
     "@tiptap/extension-link": "^3.14.0",
     "@tiptap/react": "^3.14.0",

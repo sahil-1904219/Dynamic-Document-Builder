@@ -122,7 +122,7 @@ export const downloadFile = (content, filename, type = 'text/plain') => {
   URL.revokeObjectURL(url);
 };
 
-export const validateSectionsForExport = () => {
+export const validateSectionsForExport = (sections, isSectionValid) => {
   const invalidSections = sections.filter(s => !isSectionValid(s));
 
   if (invalidSections.length > 0) {
