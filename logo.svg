@@ -1,0 +1,135 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Vibrant gradient for main document -->
+    <linearGradient id="docGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6366F1;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Bright gradient for gear -->
+    <linearGradient id="gearGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FCD34D;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F59E0B;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Radial gradient for glow background -->
+    <radialGradient id="bgGlow">
+      <stop offset="0%" style="stop-color:#312E81;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E1B4B;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Dark background with glow -->
+  <circle cx="100" cy="100" r="100" fill="url(#bgGlow)"/>
+  
+  <!-- Bright outer rings for glow effect -->
+  <circle cx="100" cy="100" r="92" fill="none" stroke="#7C3AED" stroke-width="3" opacity="0.4"/>
+  <circle cx="100" cy="100" r="88" fill="none" stroke="#8B5CF6" stroke-width="2" opacity="0.5"/>
+  
+  <!-- Shadow layers behind documents for depth -->
+  <path d="M 70 55 L 130 55 L 148 73 L 148 160 L 70 160 Z" 
+        fill="#4C1D95" 
+        opacity="0.6"/>
+  
+  <path d="M 65 50 L 125 50 L 143 68 L 143 155 L 65 155 Z" 
+        fill="#5B21B6" 
+        opacity="0.7"/>
+  
+  <!-- Glow effect layers behind main document -->
+  <path d="M 60 45 L 120 45 L 138 63 L 138 150 L 60 150 Z" 
+        fill="#A78BFA" 
+        opacity="0.5"
+        transform="translate(-2, -2)"/>
+  <path d="M 60 45 L 120 45 L 138 63 L 138 150 L 60 150 Z" 
+        fill="#C4B5FD" 
+        opacity="0.3"
+        transform="translate(-4, -4)"/>
+  
+  <!-- Main document shape with bright gradient -->
+  <path d="M 60 45 L 120 45 L 138 63 L 138 150 L 60 150 Z" 
+        fill="url(#docGradient)" 
+        stroke="#A78BFA" 
+        stroke-width="2.5"/>
+  
+  <!-- Bright folded corner -->
+  <path d="M 120 45 L 120 63 L 138 63 Z" 
+        fill="#A78BFA" 
+        stroke="#C4B5FD" 
+        stroke-width="2"/>
+  
+  <!-- Multiple glow layers for document lines -->
+  <g opacity="1">
+    <!-- Glow halos -->
+    <line x1="73" y1="75" x2="125" y2="75" stroke="#FDE68A" stroke-width="8" stroke-linecap="round" opacity="0.4"/>
+    <line x1="73" y1="90" x2="115" y2="90" stroke="#FDE68A" stroke-width="8" stroke-linecap="round" opacity="0.4"/>
+    <line x1="73" y1="105" x2="125" y2="105" stroke="#FDE68A" stroke-width="8" stroke-linecap="round" opacity="0.4"/>
+    <line x1="73" y1="120" x2="110" y2="120" stroke="#FDE68A" stroke-width="8" stroke-linecap="round" opacity="0.4"/>
+    
+    <!-- Bright core lines -->
+    <line x1="75" y1="75" x2="123" y2="75" stroke="#FCD34D" stroke-width="4" stroke-linecap="round"/>
+    <line x1="75" y1="90" x2="113" y2="90" stroke="#FBBF24" stroke-width="4" stroke-linecap="round"/>
+    <line x1="75" y1="105" x2="123" y2="105" stroke="#FCD34D" stroke-width="4" stroke-linecap="round"/>
+    <line x1="75" y1="120" x2="108" y2="120" stroke="#FBBF24" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Glowing gear with multiple layers -->
+  <g transform="translate(115, 130)">
+    <!-- Outer glow halos -->
+    <circle cx="0" cy="0" r="28" fill="#FCD34D" opacity="0.3"/>
+    <circle cx="0" cy="0" r="24" fill="#FBBF24" opacity="0.4"/>
+    
+    <!-- Gear teeth with glow -->
+    <path d="M -3 -22 L 3 -22 L 3 -27 L -3 -27 Z 
+             M -3 22 L 3 22 L 3 27 L -3 27 Z 
+             M -22 -3 L -22 3 L -27 3 L -27 -3 Z 
+             M 22 -3 L 22 3 L 27 3 L 27 -3 Z
+             M -16 -16 L -13 -19 L -19 -13 Z
+             M 16 -16 L 19 -13 L 13 -19 Z
+             M -16 16 L -19 13 L -13 19 Z
+             M 16 16 L 13 19 L 19 13 Z" 
+          fill="#FDE68A" 
+          stroke="#FCD34D" 
+          stroke-width="2"/>
+    
+    <!-- Main gear body -->
+    <circle cx="0" cy="0" r="19" fill="url(#gearGradient)" stroke="#FDE68A" stroke-width="3"/>
+    
+    <!-- Bright inner circle -->
+    <circle cx="0" cy="0" r="11" fill="#FEF3C7" stroke="#FCD34D" stroke-width="2"/>
+    
+    <!-- Shiny center -->
+    <circle cx="0" cy="0" r="5" fill="#FFFFFF"/>
+    <circle cx="-2" cy="-2" r="2" fill="#FFFFFF" opacity="0.8"/>
+  </g>
+  
+  <!-- Large bright sparkles -->
+  <g opacity="1">
+    <!-- Main sparkle with glow -->
+    <circle cx="45" cy="41" r="6" fill="#FCD34D" opacity="0.3"/>
+    <path d="M 45 28 L 48 38 L 58 41 L 48 44 L 45 54 L 42 44 L 32 41 L 42 38 Z" fill="#FDE68A" stroke="#FCD34D" stroke-width="1.5"/>
+    <path d="M 45 33 L 47 39 L 53 41 L 47 43 L 45 49 L 43 43 L 37 41 L 43 39 Z" fill="#FFFBEB"/>
+    
+    <circle cx="155" cy="33" r="5" fill="#FCD34D" opacity="0.3"/>
+    <path d="M 155 23 L 157 30 L 164 33 L 157 36 L 155 43 L 153 36 L 146 33 L 153 30 Z" fill="#FDE68A" stroke="#FCD34D" stroke-width="1.5"/>
+    <path d="M 155 27 L 156 31 L 160 33 L 156 35 L 155 39 L 154 35 L 150 33 L 154 31 Z" fill="#FFFBEB"/>
+    
+    <circle cx="50" cy="167" r="4" fill="#FCD34D" opacity="0.3"/>
+    <path d="M 50 161 L 51.5 165 L 55.5 167 L 51.5 169 L 50 173 L 48.5 169 L 44.5 167 L 48.5 165 Z" fill="#FDE68A"/>
+    <path d="M 50 163 L 51 166 L 54 167 L 51 168 L 50 171 L 49 168 L 46 167 L 49 166 Z" fill="#FFFBEB"/>
+  </g>
+  
+  <!-- Small accent sparkles with halos -->
+  <g opacity="1">
+    <circle cx="162" cy="60" r="4" fill="#FCD34D" opacity="0.4"/>
+    <circle cx="162" cy="60" r="2.5" fill="#FDE68A"/>
+    <circle cx="162" cy="60" r="1.5" fill="#FFFBEB"/>
+    
+    <circle cx="38" cy="100" r="4" fill="#FCD34D" opacity="0.4"/>
+    <circle cx="38" cy="100" r="2.5" fill="#FDE68A"/>
+    <circle cx="38" cy="100" r="1.5" fill="#FFFBEB"/>
+    
+    <circle cx="152" cy="142" r="4" fill="#FCD34D" opacity="0.4"/>
+    <circle cx="152" cy="142" r="2.5" fill="#FDE68A"/>
+    <circle cx="152" cy="142" r="1.5" fill="#FFFBEB"/>
+  </g>
+</svg>
