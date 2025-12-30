@@ -17,12 +17,12 @@ import { DeleteModal } from './components/modals/DeleteModal';
 import { ValidationModal } from './components/modals/ValidateModal';
 
 // At the top, update the imports to include generateId:
-import { 
-  countWords, 
-  countCharacters, 
-  generateMarkdown, 
-  generateMetadata, 
-  downloadFile, 
+import {
+  countWords,
+  countCharacters,
+  generateMarkdown,
+  generateMetadata,
+  downloadFile,
   validateSectionsForExport,
   generateId  // ADD THIS
 } from './utils/documentUtils';
@@ -37,14 +37,14 @@ const DynamicDocumentBuilderContent = () => {
     previewWidth,
     showDownloadModal, setShowDownloadModal,
     showDeleteModal, setShowDeleteModal,
-    sectionToDelete, setSectionToDelete,
+    setSectionToDelete,
     showDeleteDocModal, setShowDeleteDocModal,
-    docToDelete, setDocToDelete,
+    setDocToDelete,
     showValidationModal, setShowValidationModal,
     validationErrors, setValidationErrors,
     activeDoc, sections, selectedSection,
-    selectedSectionId, setSelectedSectionId,
-    showNotification,setSections
+    setSelectedSectionId,
+    showNotification, setSections, autoSaveStatus
   } = useDocumentContext();
 
   const {
@@ -69,64 +69,64 @@ const DynamicDocumentBuilderContent = () => {
 
   // In your DynamicDocumentBuilderContent component, update these functions:
 
-const handleMarkdownUpload = (file) => {
-  if (!file || !file.name.endsWith('.md')) {
-    showNotification('Please upload a .md file');
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const content = e.target.result;
-    const result = parseMarkdownToSections(content, generateId);
-    
-    // Update the sections state with the parsed data
-    setSections(result.sections);
-    
-    // Optionally select the first section
-    if (result.sections.length > 0) {
-      setSelectedSectionId(result.sections[0].id);
+  const handleMarkdownUpload = (file) => {
+    if (!file || !file.name.endsWith('.md')) {
+      showNotification('Please upload a .md file');
+      return;
     }
-    
-    const fileName = file.name.replace('.md', '');
-    renameDocument(activeDocId, fileName);
-    
-    showNotification(`✓ Loaded ${result.sections.length} sections with ${result.stats.totalImages} images`);
-  };
-  reader.readAsText(file);
-};
 
-const handleJsonUpload = (file) => {
-  if (!file || !file.name.endsWith('.json')) {
-    showNotification('Please upload a .json metadata file');
-    return;
-  }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target.result;
+      const result = parseMarkdownToSections(content, generateId);
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const metadata = JSON.parse(e.target.result);
-      const result = parseJsonToSections(metadata, generateId);
-      
       // Update the sections state with the parsed data
       setSections(result.sections);
-      
+
       // Optionally select the first section
       if (result.sections.length > 0) {
         setSelectedSectionId(result.sections[0].id);
       }
 
-      const fileName = file.name.replace('_metadata.json', '').replace('.json', '');
+      const fileName = file.name.replace('.md', '');
       renameDocument(activeDocId, fileName);
-      
+
       showNotification(`✓ Loaded ${result.sections.length} sections with ${result.stats.totalImages} images`);
-    } catch (error) {
-      showNotification('Invalid JSON file format');
-      console.error('JSON parse error:', error);
-    }
+    };
+    reader.readAsText(file);
   };
-  reader.readAsText(file);
-};
+
+  const handleJsonUpload = (file) => {
+    if (!file || !file.name.endsWith('.json')) {
+      showNotification('Please upload a .json metadata file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const metadata = JSON.parse(e.target.result);
+        const result = parseJsonToSections(metadata, generateId);
+
+        // Update the sections state with the parsed data
+        setSections(result.sections);
+
+        // Optionally select the first section
+        if (result.sections.length > 0) {
+          setSelectedSectionId(result.sections[0].id);
+        }
+
+        const fileName = file.name.replace('_metadata.json', '').replace('.json', '');
+        renameDocument(activeDocId, fileName);
+
+        showNotification(`✓ Loaded ${result.sections.length} sections with ${result.stats.totalImages} images`);
+      } catch (error) {
+        showNotification('Invalid JSON file format');
+        console.error('JSON parse error:', error);
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleDownload = (format) => {
     if (sections.length === 0) {
@@ -154,21 +154,30 @@ const handleJsonUpload = (file) => {
     const docName = activeDoc.name || 'document';
 
     switch (format) {
-      case 'markdown':
+      case 'markdown': {
         const markdown = generateMarkdown(sections);
         downloadFile(markdown, `${docName}.md`);
         showNotification('✓ Markdown downloaded with embedded images!');
         break;
+      }
 
-      case 'metadata':
+      case 'metadata': {
         const metadata = generateMetadata(sections);
-        downloadFile(JSON.stringify(metadata, null, 2), `${docName}_metadata.json`, 'application/json');
+        downloadFile(
+          JSON.stringify(metadata, null, 2),
+          `${docName}_metadata.json`,
+          'application/json'
+        );
         showNotification('✓ Metadata downloaded with hierarchy & statistics!');
         break;
-    }
+      }
 
-    setShowDownloadModal(false);
-  };
+      default: {
+        console.warn('Unknown export format:', format);
+        showNotification('Unsupported export format');
+      }
+    }
+  }
 
   const totalWords = selectedSection ? countWords(selectedSection.content || '') : 0;
   const totalChars = selectedSection ? countCharacters(selectedSection.content || '') : 0;
@@ -246,15 +255,14 @@ const handleJsonUpload = (file) => {
       <div className="flex-1 flex overflow-hidden app-container">
         {previewMode !== 'full' && (
           <>
-            <Sidebar 
-              onMarkdownUpload={handleMarkdownUpload} 
-              onJsonUpload={handleJsonUpload} 
+            <Sidebar
+              onMarkdownUpload={handleMarkdownUpload}
+              onJsonUpload={handleJsonUpload}
             />
-            
+
             <div
-              className={`w-1 cursor-col-resize hover:bg-indigo-500 transition-colors ${
-                darkMode ? 'bg-slate-700' : 'bg-gray-300'
-              } ${isResizingSidebar ? 'bg-indigo-500' : ''}`}
+              className={`w-1 cursor-col-resize hover:bg-indigo-500 transition-colors ${darkMode ? 'bg-slate-700' : 'bg-gray-300'
+                } ${isResizingSidebar ? 'bg-indigo-500' : ''}`}
               onMouseDown={handleSidebarMouseDown}
             />
           </>
@@ -279,9 +287,8 @@ const handleJsonUpload = (file) => {
             {previewMode === 'split' && (
               <>
                 <div
-                  className={`w-1 cursor-col-resize hover:bg-indigo-500 transition-colors ${
-                    darkMode ? 'bg-slate-700' : 'bg-gray-300'
-                  } ${isResizing ? 'bg-indigo-500' : ''}`}
+                  className={`w-1 cursor-col-resize hover:bg-indigo-500 transition-colors ${darkMode ? 'bg-slate-700' : 'bg-gray-300'
+                    } ${isResizing ? 'bg-indigo-500' : ''}`}
                   onMouseDown={handleMouseDown}
                 />
                 <div
@@ -301,7 +308,7 @@ const handleJsonUpload = (file) => {
         selectedSection={selectedSection}
         totalChars={totalChars}
         totalWords={totalWords}
-        autoSaveStatus="Saved"
+        autoSaveStatus={autoSaveStatus}
         darkMode={darkMode}
       />
     </div>

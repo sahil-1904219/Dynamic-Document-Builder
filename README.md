@@ -1,7 +1,5 @@
 # Dynamic Document Builder
 
-Live demo: [https://sahil-1904219.github.io/Dynamic-Document-Builder/](https://sahil-1904219.github.io/Dynamic-Document-Builder/)
-
 A small, focused React app that lets users create structured documents with dynamic sections, subsections, images, and export to Markdown + metadata JSON. Designed to be simple, responsive, and easy to extend.
 
 ---
@@ -132,8 +130,8 @@ Conclusion
 
 ```
 src/
+├── DynamicDocumentBuilder.jsx   ✅ (NEW – main composition file)
 ├── components/
-│   ├── DynamicDocumentBuilder.jsx
 │   ├── layout/
 │   │   ├── Header.jsx
 │   │   ├── Footer.jsx
@@ -162,6 +160,7 @@ src/
 └── utils/
     ├── documentUtils.js
     └── markdownUtils.js
+
 ```
 
 

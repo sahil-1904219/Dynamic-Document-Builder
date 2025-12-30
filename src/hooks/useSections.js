@@ -2,10 +2,10 @@ import { useDocumentContext } from '../context/DocumentContext';
 import { generateId } from '../utils/documentUtils';
 
 export const useSections = () => {
-  const { 
-    sections, 
-    setSections, 
-    selectedSectionId, 
+  const {
+    sections,
+    setSections,
+    selectedSectionId,
     setSelectedSectionId,
     showNotification,
     sectionToDelete,
@@ -73,14 +73,39 @@ export const useSections = () => {
     const section = sections.find(s => s.id === sectionId);
     if (!section) return;
 
-    const newSection = {
-      ...section,
-      id: generateId(),
-      name: `${section.name} (Copy)`,
+    // Map to store old ID -> new ID mappings
+    const idMap = new Map();
+    const newSections = [];
+
+    // Recursive function to duplicate a section and all its children
+    const duplicateSectionRecursive = (srcSection, newParentId = null) => {
+      const newId = generateId();
+      idMap.set(srcSection.id, newId);
+
+      const duplicated = {
+        ...srcSection,
+        id: newId,
+        parentId: newParentId,
+        name: srcSection.id === sectionId ? `${srcSection.name} (Copy)` : srcSection.name,
+      };
+
+      newSections.push(duplicated);
+
+      // Find and duplicate all children
+      const children = sections.filter(s => s.parentId === srcSection.id);
+      children.forEach(child => {
+        duplicateSectionRecursive(child, newId);
+      });
+
+      return newId;
     };
-    setSections([...sections, newSection]);
-    setSelectedSectionId(newSection.id);
-    showNotification('Section duplicated!');
+
+    // Start duplication from the selected section
+    const newRootId = duplicateSectionRecursive(section, section.parentId);
+
+    setSections([...sections, ...newSections]);
+    setSelectedSectionId(newRootId);
+    showNotification(`Section duplicated with ${newSections.length} item(s)!`);
   };
 
   const handleDragStart = (e, sectionId) => {
@@ -122,15 +147,15 @@ export const useSections = () => {
     showNotification('Section moved');
   };
 
-  return { 
-    addSection, 
-    updateSection, 
-    deleteSection, 
-    confirmDelete, 
-    duplicateSection, 
+  return {
+    addSection,
+    updateSection,
+    deleteSection,
+    confirmDelete,
+    duplicateSection,
     isSectionValid,
-    handleDragStart, 
-    handleDragOver, 
-    handleDrop 
+    handleDragStart,
+    handleDragOver,
+    handleDrop
   };
 };
