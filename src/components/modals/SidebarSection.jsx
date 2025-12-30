@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import { FileText, ChevronDown, ChevronRight, Copy, Plus, Trash2 } from 'lucide-react';
 
-export const SidebarSection = ({ 
-  section, 
-  sections, 
-  level, 
-  onSelect, 
-  selectedId, 
-  onDelete, 
-  onAddChild, 
-  onDuplicate, 
-  onDragStart, 
-  onDragOver, 
-  onDrop, 
-  searchTerm, 
-  darkMode 
+export const SidebarSection = ({
+  section,
+  sections,
+  level,
+  onSelect,
+  selectedId,
+  onDelete,
+  onAddChild,
+  onDuplicate,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  searchTerm,
+  darkMode
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const childSections = sections.filter(s => s.parentId === section.id);
@@ -22,7 +22,7 @@ export const SidebarSection = ({
   const displayName = section.name && section.name.trim()
     ? section.name
     : 'Untitled';
-    
+
   const matchesSearch = !searchTerm ||
     displayName.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -40,11 +40,10 @@ export const SidebarSection = ({
         onDragStart={(e) => onDragStart(e, section.id)}
         onDragOver={onDragOver}
         onDrop={(e) => onDrop(e, section.id)}
-        className={`group relative flex items-start gap-2 py-2 px-3 rounded-lg cursor-pointer transition-all transform hover:scale-[1.02] hover:shadow-md ${
-          selectedId === section.id
+        className={`group relative flex items-start gap-2 py-2 px-3 rounded-lg cursor-pointer transition-all transform hover:scale-[1.02] hover:shadow-md ${selectedId === section.id
             ? darkMode ? 'bg-indigo-900 bg-opacity-50 shadow-lg' : 'bg-indigo-50 shadow-lg'
             : darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-50'
-        } ${isInvalid ? 'border-2 border-red-500 border-dashed animate-pulse' : ''}`}
+          } ${isInvalid ? 'border-2 border-red-500 border-dashed animate-pulse' : ''}`}
         onClick={() => onSelect(section.id)}
         style={{ marginLeft: `${level * 16}px` }}
       >
@@ -70,16 +69,15 @@ export const SidebarSection = ({
             {isInvalid && <span className="ml-2 text-red-500 text-xs">⚠️ Heading required</span>}
           </div>
         </div>
-        
+
         <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDuplicate(section.id);
             }}
-            className={`p-1 rounded transform hover:scale-125 transition-transform ${
-              darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-200'
-            }`}
+            className={`p-1 rounded transform hover:scale-125 transition-transform ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-200'
+              }`}
             title="Duplicate"
           >
             <Copy size={14} />
@@ -90,9 +88,8 @@ export const SidebarSection = ({
                 e.stopPropagation();
                 onAddChild(section.id);
               }}
-              className={`p-1 rounded transform hover:scale-125 hover:rotate-90 transition-all ${
-                darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-200'
-              }`}
+              className={`p-1 rounded transform hover:scale-125 hover:rotate-90 transition-all ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-200'
+                }`}
               title="Add subsection"
             >
               <Plus size={14} />

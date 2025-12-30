@@ -5,29 +5,29 @@ import { useDocumentContext } from '../../context/DocumentContext';
 import { useSections } from '../../hooks/useSections';
 
 export const Sidebar = ({ onMarkdownUpload, onJsonUpload }) => {
-  const { 
-    searchTerm, 
-    setSearchTerm, 
-    sections, 
+  const {
+    searchTerm,
+    setSearchTerm,
+    sections,
     selectedSectionId,
     setSelectedSectionId,
     darkMode,
-    sidebarWidth 
+    sidebarWidth
   } = useDocumentContext();
-  
-  const { 
-    addSection, 
-    deleteSection, 
-    duplicateSection, 
-    handleDragStart, 
-    handleDragOver, 
-    handleDrop 
+
+  const {
+    addSection,
+    deleteSection,
+    duplicateSection,
+    handleDragStart,
+    handleDragOver,
+    handleDrop
   } = useSections();
 
   const topLevelSections = sections.filter(s => !s.parentId);
 
   return (
-    <div 
+    <div
       className={`border-r flex flex-col ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'}`}
       style={{ width: `${sidebarWidth}%`, height: '100%' }}
     >
@@ -39,9 +39,8 @@ export const Sidebar = ({ onMarkdownUpload, onJsonUpload }) => {
             placeholder="Search sections..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`flex-1 bg-transparent border-none focus:outline-none text-sm ${
-              darkMode ? 'text-slate-200 placeholder-slate-500' : 'text-slate-900 placeholder-gray-400'
-            }`}
+            className={`flex-1 bg-transparent border-none focus:outline-none text-sm ${darkMode ? 'text-slate-200 placeholder-slate-500' : 'text-slate-900 placeholder-gray-400'
+              }`}
           />
         </div>
       </div>
@@ -54,7 +53,7 @@ export const Sidebar = ({ onMarkdownUpload, onJsonUpload }) => {
           <Plus size={18} />
           Add Section
         </button>
-        
+
         {sections.length === 0 && (
           <>
             <label className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg text-sm font-medium cursor-pointer">

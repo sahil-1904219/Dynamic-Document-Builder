@@ -1,15 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDocumentContext } from '../context/DocumentContext';
 
 export const useResizable = () => {
-  const { 
-    previewMode, 
-    previewWidth, 
-    setPreviewWidth, 
-    sidebarWidth, 
-    setSidebarWidth 
+  const {
+    previewMode,
+    setPreviewWidth,
+    setSidebarWidth
   } = useDocumentContext();
-  
+
   const [isResizing, setIsResizing] = useState(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
 
@@ -20,7 +18,7 @@ export const useResizable = () => {
     }
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = useCallback((e) => {
     if (!isResizing) return;
 
     const container = document.querySelector('.main-container');
@@ -32,18 +30,18 @@ export const useResizable = () => {
     if (newWidth > 20 && newWidth < 80) {
       setPreviewWidth(newWidth);
     }
-  };
+  }, [isResizing, setPreviewWidth]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsResizing(false);
-  };
+  }, []);
 
   const handleSidebarMouseDown = (e) => {
     setIsResizingSidebar(true);
     e.preventDefault();
   };
 
-  const handleSidebarMouseMove = (e) => {
+  const handleSidebarMouseMove = useCallback((e) => {
     if (!isResizingSidebar) return;
 
     const container = document.querySelector('.app-container');
@@ -55,11 +53,11 @@ export const useResizable = () => {
     if (newWidth > 15 && newWidth < 40) {
       setSidebarWidth(newWidth);
     }
-  };
+  }, [isResizingSidebar, setSidebarWidth]);
 
-  const handleSidebarMouseUp = () => {
+  const handleSidebarMouseUp = useCallback(() => {
     setIsResizingSidebar(false);
-  };
+  }, []);
 
   useEffect(() => {
     if (isResizingSidebar) {
@@ -70,7 +68,7 @@ export const useResizable = () => {
         document.removeEventListener('mouseup', handleSidebarMouseUp);
       };
     }
-  }, [isResizingSidebar]);
+  }, [isResizingSidebar, handleSidebarMouseMove, handleSidebarMouseUp]);
 
   useEffect(() => {
     if (isResizing) {
@@ -81,12 +79,12 @@ export const useResizable = () => {
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isResizing]);
+  }, [isResizing, handleMouseMove, handleMouseUp]);
 
-  return { 
-    isResizing, 
+  return {
+    isResizing,
     isResizingSidebar,
-    handleMouseDown, 
-    handleSidebarMouseDown 
+    handleMouseDown,
+    handleSidebarMouseDown
   };
 };

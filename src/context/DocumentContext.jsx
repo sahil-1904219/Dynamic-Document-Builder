@@ -11,11 +11,11 @@ export const useDocumentContext = () => {
 
 export const DocumentProvider = ({ children }) => {
   const [documents, setDocuments] = useState([
-    { 
-      id: 'doc_1', 
-      name: 'Untitled Document', 
-      sections: [], 
-      createdAt: new Date().toISOString() 
+    {
+      id: 'doc_1',
+      name: 'Untitled Document',
+      sections: [],
+      createdAt: new Date().toISOString()
     }
   ]);
   const [activeDocId, setActiveDocId] = useState('doc_1');
@@ -40,7 +40,7 @@ export const DocumentProvider = ({ children }) => {
   const [docToDelete, setDocToDelete] = useState(null);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
-  
+
   const textareaRef = useRef(null);
 
   const activeDoc = documents.find(d => d.id === activeDocId);
@@ -48,8 +48,8 @@ export const DocumentProvider = ({ children }) => {
   const selectedSection = sections.find(s => s.id === selectedSectionId);
 
   const setSections = (newSections) => {
-    const updatedSections = typeof newSections === 'function' 
-      ? newSections(sections) 
+    const updatedSections = typeof newSections === 'function'
+      ? newSections(sections)
       : newSections;
 
     // Add to history

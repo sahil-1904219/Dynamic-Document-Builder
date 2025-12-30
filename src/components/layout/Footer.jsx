@@ -1,12 +1,12 @@
 import React from 'react';
 
-export const Footer = ({ 
-  sectionsCount, 
-  selectedSection, 
-  totalChars, 
-  totalWords, 
-  autoSaveStatus, 
-  darkMode 
+export const Footer = ({
+  sectionsCount,
+  selectedSection,
+  totalChars,
+  totalWords,
+  autoSaveStatus,
+  darkMode
 }) => {
   return (
     <div className={`border-t ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'} flex-shrink-0`}>

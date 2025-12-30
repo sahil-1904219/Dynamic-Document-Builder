@@ -5,8 +5,11 @@ export const renderMarkdown = (text) => {
 
   let html = text
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\_(.+?)\_/g, '<em>$1</em>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+    .replace(
+      /\[(.+?)\]\((.+?)\)/g,
+      '<a href="$2" class="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>'
+    )
     .replace(/^---$/gm, '<hr class="my-4 border-gray-300" />')
     .replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>')
     .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>')
@@ -15,8 +18,9 @@ export const renderMarkdown = (text) => {
   return html;
 };
 
+
 export const parseMarkdownToSections = (markdown, generateId) => {
-  console.log(markdown,generateId);
+  console.log(markdown, generateId);
   const lines = markdown.split('\n');
   const newSections = [];
   const sectionStack = [];
@@ -32,6 +36,17 @@ export const parseMarkdownToSections = (markdown, generateId) => {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const escapedHeadingMatch = line.match(/^\\(#{1,6}\s.*)$/);
+    if (escapedHeadingMatch && currentSection) {
+
+      const unescapedLine = escapedHeadingMatch[1];
+      if (contentBuffer) {
+        contentBuffer += '\n';
+      }
+      contentBuffer += unescapedLine;
+      continue;
+    }
+
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
     const imageMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
 
@@ -99,7 +114,7 @@ export const parseMarkdownToSections = (markdown, generateId) => {
   }
 
   finalizeSection();
-  
+
   // Return data object instead of setting state
   return {
     sections: newSections,

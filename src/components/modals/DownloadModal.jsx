@@ -1,4 +1,4 @@
-import {  X, FileJson, FileCode } from 'lucide-react';
+import { X, FileJson, FileCode } from 'lucide-react';
 
 
 export const DownloadModal = ({ onClose, onDownload, darkMode }) => {
@@ -33,12 +33,12 @@ export const DownloadModal = ({ onClose, onDownload, darkMode }) => {
               Download your document files (images embedded as base64)
             </p>
           </div>
-<button 
-  onClick={onClose} 
-  className={`p-2 ${darkMode ? 'hover:bg-red-600' : 'hover:bg-red-500'} rounded-lg transition-all hover:scale-110`}
->
-  <X size={20} className={`${darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-white'} transition-colors`} />
-</button>
+          <button
+            onClick={onClose}
+            className={`p-2 ${darkMode ? 'hover:bg-red-600' : 'hover:bg-red-500'} rounded-lg transition-all hover:scale-110`}
+          >
+            <X size={20} className={`${darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-white'} transition-colors`} />
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

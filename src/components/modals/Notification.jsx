@@ -27,9 +27,8 @@ export const Notification = ({ message, onClose, darkMode }) => {
       `}
     >
       <CheckCircle
-        className={`w-5 h-5 ${
-          darkMode ? "text-emerald-400" : "text-emerald-600"
-        }`}
+        className={`w-5 h-5 ${darkMode ? "text-emerald-400" : "text-emerald-600"
+          }`}
       />
       <span>{message}</span>
     </div>

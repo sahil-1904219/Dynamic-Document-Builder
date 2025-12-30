@@ -19,10 +19,13 @@ export const generateMarkdown = (sections) => {
         markdown += `![${img.label}](${img.preview})\n\n`;
       });
     }
-
+    if (section.content) {
+      const escapedContent = section.content.replace(/^(#{1,6}\s)/gm, '\\$1');
+      markdown += `${escapedContent}\n\n`;
+    }
     // Add content
     if (section.content) {
-      markdown += `${section.content}\n\n`;
+
     }
 
     // Images BELOW content (default)

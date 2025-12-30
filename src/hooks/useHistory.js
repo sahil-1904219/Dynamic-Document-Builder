@@ -1,12 +1,12 @@
 import { useDocumentContext } from '../context/DocumentContext';
 
 export const useHistory = () => {
-  const { 
-    history, 
-    historyIndex, 
-    setHistoryIndex, 
-    setDocuments, 
-    activeDocId 
+  const {
+    history,
+    historyIndex,
+    setHistoryIndex,
+    setDocuments,
+    activeDocId
   } = useDocumentContext();
 
   const undo = () => {
@@ -31,10 +31,10 @@ export const useHistory = () => {
     }
   };
 
-  return { 
-    undo, 
-    redo, 
-    canUndo: historyIndex > 0, 
-    canRedo: historyIndex < history.length - 1 
+  return {
+    undo,
+    redo,
+    canUndo: historyIndex > 0,
+    canRedo: historyIndex < history.length - 1
   };
 };

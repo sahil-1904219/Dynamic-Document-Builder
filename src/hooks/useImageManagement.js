@@ -2,23 +2,23 @@ import { useDocumentContext } from '../context/DocumentContext';
 import { useSections } from './useSections';
 
 export const useImageManagement = () => {
-  const { 
-    selectedSection, 
-    selectedSectionId, 
+  const {
+    selectedSection,
+    selectedSectionId,
     showNotification,
     swappingIndex,
     setSwappingIndex
   } = useDocumentContext();
-  
+
   const { updateSection } = useSections();
 
-const MAX_IMAGES = 9;
+  const MAX_IMAGES = 9;
 
   const handleImageUpload = (file) => {
     if (!selectedSection || !file) return;
 
     const currentImages = selectedSection.images || [];
-    
+
     // Check image limit
     if (currentImages.length >= MAX_IMAGES) {
       showNotification(`Maximum ${MAX_IMAGES} images allowed per section`);
@@ -100,11 +100,11 @@ const MAX_IMAGES = 9;
     }, 420); // must match duration
   };
 
-  return { 
-    handleImageUpload, 
-    moveImage, 
-    deleteImage, 
-    updateImageLabel, 
-    swapImagesWithSpring 
+  return {
+    handleImageUpload,
+    moveImage,
+    deleteImage,
+    updateImageLabel,
+    swapImagesWithSpring
   };
 };
