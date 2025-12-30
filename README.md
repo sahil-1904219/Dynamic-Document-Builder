@@ -130,7 +130,7 @@ Conclusion
 
 ```
 src/
-├── DynamicDocumentBuilder.jsx   ✅ (NEW – main composition file)
+├── DynamicDocumentBuilder.jsx 
 ├── components/
 │   ├── layout/
 │   │   ├── Header.jsx
