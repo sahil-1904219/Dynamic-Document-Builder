@@ -53,8 +53,6 @@ This app implements a dynamic section editor where:
 
 * **Styling**: Tailwind CSS (v3.4.1) with PostCSS (v8.4.35) and Autoprefixer (v10.4.17).
 
-* **Editors**: TipTap (v3.14.0) for rich text handling and `react-quill` (v2.0.0) where lightweight editing is sufficient.
-
 * **Routing**: `react-router-dom` (v7.11.0) for client-side routing.
 
 * **Icons**: `lucide-react` (v0.263.1) for clean, accessible icons.
